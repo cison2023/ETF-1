@@ -1,0 +1,43 @@
+name: 📈 시세 자동 업데이트
+
+on:
+  schedule:
+    # 평일(월~금) 오전 9시 10분 KST (= UTC 00:10)
+    - cron: '10 0 * * 1-5'
+  workflow_dispatch:
+    # ★ GitHub 웹사이트에서 수동 실행 버튼 (폰/태블릿에서도 가능!)
+    inputs:
+      reason:
+        description: '실행 이유 (선택)'
+        required: false
+        default: '수동 실행'
+
+jobs:
+  update-prices:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # HTML 파일을 커밋·푸시하기 위해 필요
+
+    steps:
+      - name: 📥 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 🐍 Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 의존성 설치
+        run: pip install FinanceDataReader
+
+      - name: 🔄 시세 업데이트 실행
+        run: python stock_github.py
+
+      - name: 💾 변경사항 커밋 & 푸시
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ETF_index_Ver3_1.html prices.json 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "📈 시세 자동 업데이트 $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M KST')"
+          git push
