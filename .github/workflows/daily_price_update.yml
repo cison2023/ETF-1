@@ -28,7 +28,7 @@ jobs:
           python-version: '3.11'
       
       - name: 📦 의존성 설치
-        run: pip install FinanceDataReader
+        run: pip install finance-datareader
 
       - name: 🔄 시세 업데이트 실행
         run: python stock_github.py
