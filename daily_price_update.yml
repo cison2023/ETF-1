@@ -1,0 +1,193 @@
+# ═══════════════════════════════════════════════════════════════════
+#  ETF 시세 자동 업데이트 — GitHub Actions 워크플로우
+#  실행 시각: 매 평일 KST 15:35 (UTC 06:35) — 한국 주식시장 마감(15:30) 후
+#  수동 실행: GitHub → Actions 탭 → Run workflow 버튼으로 언제든 가능
+# ═══════════════════════════════════════════════════════════════════
+name: 📈 ETF 일일 시세 자동 업데이트
+
+on:
+  schedule:
+    # UTC 06:35 = KST 15:35 (한국 주식시장 15:30 마감 후 5분)
+    # 월~금 (평일만) 실행
+    - cron: '35 6 * * 1-5'
+
+  # 수동 실행 (GitHub Actions 탭에서 Run workflow 클릭)
+  workflow_dispatch:
+    inputs:
+      send_email:
+        description: '이메일 알림 발송 여부'
+        required: false
+        default: 'true'
+        type: boolean
+
+# 동일 워크플로우 중복 실행 방지
+concurrency:
+  group: price-update
+  cancel-in-progress: false
+
+jobs:
+  update-and-notify:
+    name: 시세 업데이트 & 알림 발송
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. 저장소 체크아웃 ──────────────────────────────────────
+      - name: 📁 저장소 체크아웃
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      # ── 2. Python 환경 설정 ────────────────────────────────────
+      - name: 🐍 Python 3.11 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ── 3. 필요 패키지 설치 ────────────────────────────────────
+      - name: 📦 패키지 설치 (FinanceDataReader)
+        run: |
+          pip install --upgrade pip
+          pip install FinanceDataReader pandas requests
+
+      # ── 4. 시세 업데이트 실행 ──────────────────────────────────
+      - name: 🔄 ETF 시세 업데이트 실행
+        id: run_update
+        run: |
+          echo "⏰ 실행 시각(UTC): $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "⏰ 실행 시각(KST): $(TZ='Asia/Seoul' date '+%Y-%m-%d %H:%M:%S')"
+          python stock_github.py
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "run_date=$(TZ='Asia/Seoul' date '+%Y년 %m월 %d일')" >> $GITHUB_OUTPUT
+          echo "run_time=$(TZ='Asia/Seoul' date '+%H:%M')" >> $GITHUB_OUTPUT
+          echo "run_date_short=$(TZ='Asia/Seoul' date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      # ── 5. 업데이트 결과 확인 ──────────────────────────────────
+      - name: 📊 업데이트 결과 확인
+        id: check_result
+        run: |
+          if [ "${{ steps.run_update.outcome }}" == "success" ]; then
+            echo "result=✅ 성공" >> $GITHUB_OUTPUT
+            echo "result_emoji=✅" >> $GITHUB_OUTPUT
+            # prices.json 정보 추출
+            if [ -f prices.json ]; then
+              NEWEST=$(python3 -c "import json; d=json.load(open('prices.json')); keys=sorted(d.keys(),reverse=True); print(keys[0] if keys else 'N/A')")
+              COUNT=$(python3 -c "import json; d=json.load(open('prices.json')); print(len(d))")
+              echo "newest_date=$NEWEST" >> $GITHUB_OUTPUT
+              echo "data_days=$COUNT" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "result=❌ 실패" >> $GITHUB_OUTPUT
+            echo "result_emoji=❌" >> $GITHUB_OUTPUT
+            echo "newest_date=N/A" >> $GITHUB_OUTPUT
+            echo "data_days=N/A" >> $GITHUB_OUTPUT
+          fi
+
+      # ── 6. 변경된 파일 커밋 & 푸시 ────────────────────────────
+      - name: 💾 변경사항 커밋 & 푸시
+        if: steps.run_update.outcome == 'success'
+        run: |
+          git config --global user.name  'ETF-Bot 🤖'
+          git config --global user.email 'actions@github.com'
+
+          # 변경된 파일만 스테이징
+          git add prices.json ETF_index_Ver3_1.html 2>/dev/null || true
+
+          # 변경사항이 있을 때만 커밋
+          if git diff --staged --quiet; then
+            echo "ℹ️ 변경된 파일 없음 — 커밋 생략"
+          else
+            KST_DATE=$(TZ='Asia/Seoul' date '+%Y-%m-%d %H:%M KST')
+            git commit -m "📈 ETF 시세 자동 업데이트: $KST_DATE"
+            git push
+            echo "✅ GitHub에 업로드 완료"
+          fi
+
+      # ── 7. 이메일 알림 발송 ────────────────────────────────────
+      - name: 📧 업데이트 결과 이메일 발송
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_TO }}
+          from: "ETF 자동알림 🤖 <${{ secrets.MAIL_USERNAME }}>"
+          subject: "${{ steps.check_result.outputs.result_emoji }} ETF 시세 업데이트 — ${{ steps.run_update.outputs.run_date }}"
+          html_body: |
+            <!DOCTYPE html>
+            <html>
+            <body style="font-family:'Malgun Gothic',sans-serif;background:#f0f2f7;margin:0;padding:20px">
+            <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1)">
+
+              <!-- 헤더 -->
+              <div style="background:linear-gradient(135deg,#1a1a2e,#1e3a8a);padding:24px;text-align:center">
+                <div style="font-size:32px">📈</div>
+                <h1 style="color:#fff;margin:8px 0 4px;font-size:20px;font-weight:800">ETF 종합현황</h1>
+                <p style="color:#93c5fd;margin:0;font-size:13px">일일 시세 자동 업데이트 알림</p>
+              </div>
+
+              <!-- 결과 배지 -->
+              <div style="padding:20px 24px 12px;text-align:center">
+                <span style="display:inline-block;padding:8px 24px;border-radius:30px;font-size:16px;font-weight:700;
+                  background:${{ steps.run_update.outcome == 'success' && '#d1fae5' || '#fee2e2' }};
+                  color:${{ steps.run_update.outcome == 'success' && '#065f46' || '#991b1b' }}">
+                  ${{ steps.check_result.outputs.result }} 업데이트
+                </span>
+              </div>
+
+              <!-- 상세 정보 -->
+              <div style="padding:12px 24px 20px">
+                <table style="width:100%;border-collapse:collapse">
+                  <tr style="border-bottom:1px solid #f0f2f8">
+                    <td style="padding:10px 0;color:#64748b;font-size:13px;font-weight:600">📅 업데이트 일자</td>
+                    <td style="padding:10px 0;text-align:right;font-size:13px;font-weight:700;color:#1a1a2e">
+                      ${{ steps.run_update.outputs.run_date }} ${{ steps.run_update.outputs.run_time }} KST
+                    </td>
+                  </tr>
+                  <tr style="border-bottom:1px solid #f0f2f8">
+                    <td style="padding:10px 0;color:#64748b;font-size:13px;font-weight:600">📊 최신 시세 기준일</td>
+                    <td style="padding:10px 0;text-align:right;font-size:13px;font-weight:700;color:#2563eb">
+                      ${{ steps.check_result.outputs.newest_date }}
+                    </td>
+                  </tr>
+                  <tr style="border-bottom:1px solid #f0f2f8">
+                    <td style="padding:10px 0;color:#64748b;font-size:13px;font-weight:600">📁 보관 데이터</td>
+                    <td style="padding:10px 0;text-align:right;font-size:13px;font-weight:700;color:#1a1a2e">
+                      ${{ steps.check_result.outputs.data_days }}일치
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;color:#64748b;font-size:13px;font-weight:600">🏷️ ETF 종목 수</td>
+                    <td style="padding:10px 0;text-align:right;font-size:13px;font-weight:700;color:#1a1a2e">25개</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- 바로가기 버튼 -->
+              <div style="padding:0 24px 24px;text-align:center">
+                <a href="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/ETF_index_Ver3_1.html"
+                   style="display:inline-block;padding:12px 32px;background:linear-gradient(135deg,#2563eb,#4a6cf7);
+                     color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;
+                     box-shadow:0 4px 12px rgba(37,99,235,.3)">
+                  📱 ETF 현황 바로가기 →
+                </a>
+              </div>
+
+              <!-- 푸터 -->
+              <div style="background:#f8fafc;padding:14px 24px;text-align:center;border-top:1px solid #e2e8f0">
+                <p style="margin:0;color:#94a3b8;font-size:11px">
+                  GitHub Actions 자동 발송 ·
+                  <a href="https://github.com/${{ github.repository }}/actions"
+                     style="color:#94a3b8">워크플로우 보기</a>
+                </p>
+              </div>
+            </div>
+            </body>
+            </html>
+
