@@ -1,127 +1,254 @@
 {
-  "2026-05-13": {
+  "2026-05-14": {
     "476800": {
-      "today": 4615,
-      "prev": 4670,
+      "today": 4570,
+      "prev": 4595,
       "src": "Python"
     },
     "0008S0": {
-      "today": 10330,
-      "prev": 10235,
+      "today": 10215,
+      "prev": 10295,
       "src": "Python"
     },
     "0052D0": {
-      "today": 16350,
-      "prev": 16455,
+      "today": 16640,
+      "prev": 16370,
       "src": "Python"
     },
     "498410": {
-      "today": 12165,
-      "prev": 12355,
+      "today": 12345,
+      "prev": 12150,
       "src": "Python"
     },
     "466940": {
-      "today": 25115,
-      "prev": 25520,
+      "today": 25505,
+      "prev": 25150,
       "src": "Python"
     },
     "498400": {
-      "today": 24425,
-      "prev": 24200,
+      "today": 24310,
+      "prev": 24655,
       "src": "Python"
     },
     "489030": {
-      "today": 7530,
-      "prev": 7520,
+      "today": 7695,
+      "prev": 7555,
       "src": "Python"
     },
     "475720": {
-      "today": 15135,
-      "prev": 14850,
+      "today": 15410,
+      "prev": 15245,
       "src": "Python"
     },
     "474220": {
       "today": 16665,
+      "prev": 16615,
+      "src": "Python"
+    },
+    "441680": {
+      "today": 11532,
+      "prev": 11570,
+      "src": "Python"
+    },
+    "482730": {
+      "today": 12690,
+      "prev": 12630,
+      "src": "Python"
+    },
+    "458760": {
+      "today": 11175,
+      "prev": 11165,
+      "src": "Python"
+    },
+    "088980": {
+      "today": 11180,
+      "prev": 11180,
+      "src": "Python"
+    },
+    "0086B0": {
+      "today": 10305,
+      "prev": 10350,
+      "src": "Python"
+    },
+    "352540": {
+      "today": 11595,
+      "prev": 11605,
+      "src": "Python"
+    },
+    "0089D0": {
+      "today": 13360,
+      "prev": 13210,
+      "src": "Python"
+    },
+    "0098N0": {
+      "today": 13285,
+      "prev": 13150,
+      "src": "Python"
+    },
+    "0097L0": {
+      "today": 13635,
+      "prev": 13410,
+      "src": "Python"
+    },
+    "0105E0": {
+      "today": 14245,
+      "prev": 14055,
+      "src": "Python"
+    },
+    "329200": {
+      "today": 4300,
+      "prev": 4250,
+      "src": "Python"
+    },
+    "481060": {
+      "today": 7790,
+      "prev": 7900,
+      "src": "Python"
+    },
+    "0153K0": {
+      "today": 12195,
+      "prev": 12010,
+      "src": "Python"
+    },
+    "433970": {
+      "today": 14415,
+      "prev": 14380,
+      "src": "Python"
+    },
+    "0025N0": {
+      "today": 12450,
+      "prev": 12435,
+      "src": "Python"
+    },
+    "486290": {
+      "today": 11930,
+      "prev": 11855,
+      "src": "Python"
+    }
+  },
+  "2026-05-13": {
+    "476800": {
+      "today": 4595,
+      "prev": 4670,
+      "src": "Python"
+    },
+    "0008S0": {
+      "today": 10295,
+      "prev": 10235,
+      "src": "Python"
+    },
+    "0052D0": {
+      "today": 16370,
+      "prev": 16455,
+      "src": "Python"
+    },
+    "498410": {
+      "today": 12150,
+      "prev": 12355,
+      "src": "Python"
+    },
+    "466940": {
+      "today": 25150,
+      "prev": 25520,
+      "src": "Python"
+    },
+    "498400": {
+      "today": 24655,
+      "prev": 24200,
+      "src": "Python"
+    },
+    "489030": {
+      "today": 7555,
+      "prev": 7520,
+      "src": "Python"
+    },
+    "475720": {
+      "today": 15245,
+      "prev": 14850,
+      "src": "Python"
+    },
+    "474220": {
+      "today": 16615,
       "prev": 16405,
       "src": "Python"
     },
     "441680": {
-      "today": 11590,
+      "today": 11570,
       "prev": 11440,
       "src": "Python"
     },
     "482730": {
-      "today": 12675,
+      "today": 12630,
       "prev": 12550,
       "src": "Python"
     },
     "458760": {
-      "today": 11205,
+      "today": 11165,
       "prev": 11185,
       "src": "Python"
     },
     "088980": {
-      "today": 11200,
+      "today": 11180,
       "prev": 11220,
       "src": "Python"
     },
     "0086B0": {
-      "today": 10390,
+      "today": 10350,
       "prev": 10580,
       "src": "Python"
     },
     "352540": {
-      "today": 11640,
+      "today": 11605,
       "prev": 11670,
       "src": "Python"
     },
     "0089D0": {
-      "today": 13200,
+      "today": 13210,
       "prev": 13335,
       "src": "Python"
     },
     "0098N0": {
-      "today": 13100,
+      "today": 13150,
       "prev": 13190,
       "src": "Python"
     },
     "0097L0": {
-      "today": 13400,
+      "today": 13410,
       "prev": 13450,
       "src": "Python"
     },
     "0105E0": {
-      "today": 14020,
+      "today": 14055,
       "prev": 14080,
       "src": "Python"
     },
     "329200": {
-      "today": 4272,
+      "today": 4250,
       "prev": 4325,
       "src": "Python"
     },
     "481060": {
-      "today": 7885,
+      "today": 7900,
       "prev": 7925,
       "src": "Python"
     },
     "0153K0": {
-      "today": 12015,
+      "today": 12010,
       "prev": 12030,
       "src": "Python"
     },
     "433970": {
-      "today": 14385,
+      "today": 14380,
       "prev": 14315,
       "src": "Python"
     },
     "0025N0": {
-      "today": 12447,
+      "today": 12435,
       "prev": 12365,
       "src": "Python"
     },
     "486290": {
-      "today": 11835,
+      "today": 11855,
       "prev": 11795,
       "src": "Python"
     }
@@ -2917,133 +3044,6 @@
     "486290": {
       "today": 10240,
       "prev": 10230,
-      "src": "Python"
-    }
-  },
-  "2026-04-08": {
-    "476800": {
-      "today": 4885,
-      "prev": 4865,
-      "src": "Python"
-    },
-    "0008S0": {
-      "today": 9979,
-      "prev": 10068,
-      "src": "Python"
-    },
-    "0052D0": {
-      "today": 15990,
-      "prev": 15481,
-      "src": "Python"
-    },
-    "498410": {
-      "today": 13020,
-      "prev": 12555,
-      "src": "Python"
-    },
-    "466940": {
-      "today": 25700,
-      "prev": 24535,
-      "src": "Python"
-    },
-    "498400": {
-      "today": 18183,
-      "prev": 16975,
-      "src": "Python"
-    },
-    "489030": {
-      "today": 8520,
-      "prev": 8470,
-      "src": "Python"
-    },
-    "475720": {
-      "today": 12655,
-      "prev": 12195,
-      "src": "Python"
-    },
-    "474220": {
-      "today": 14946,
-      "prev": 14703,
-      "src": "Python"
-    },
-    "441680": {
-      "today": 11235,
-      "prev": 11175,
-      "src": "Python"
-    },
-    "482730": {
-      "today": 11615,
-      "prev": 11490,
-      "src": "Python"
-    },
-    "458760": {
-      "today": 11170,
-      "prev": 11260,
-      "src": "Python"
-    },
-    "088980": {
-      "today": 11310,
-      "prev": 11270,
-      "src": "Python"
-    },
-    "0086B0": {
-      "today": 11000,
-      "prev": 10995,
-      "src": "Python"
-    },
-    "352540": {
-      "today": 12315,
-      "prev": 12145,
-      "src": "Python"
-    },
-    "0089D0": {
-      "today": 13240,
-      "prev": 12499,
-      "src": "Python"
-    },
-    "0098N0": {
-      "today": 12820,
-      "prev": 12338,
-      "src": "Python"
-    },
-    "0097L0": {
-      "today": 12575,
-      "prev": 12010,
-      "src": "Python"
-    },
-    "0105E0": {
-      "today": 13259,
-      "prev": 12627,
-      "src": "Python"
-    },
-    "329200": {
-      "today": 4645,
-      "prev": 4625,
-      "src": "Python"
-    },
-    "481060": {
-      "today": 8014,
-      "prev": 7954,
-      "src": "Python"
-    },
-    "0153K0": {
-      "today": 11659,
-      "prev": 11196,
-      "src": "Python"
-    },
-    "433970": {
-      "today": 13730,
-      "prev": 13610,
-      "src": "Python"
-    },
-    "0025N0": {
-      "today": 11525,
-      "prev": 11435,
-      "src": "Python"
-    },
-    "486290": {
-      "today": 10230,
-      "prev": 10065,
       "src": "Python"
     }
   }
