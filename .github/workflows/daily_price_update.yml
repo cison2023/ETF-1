@@ -30,7 +30,7 @@ jobs:
       - name: 📦 패키지 설치
         run: |
           pip install --upgrade pip
-          pip install FinanceDataReader pandas requests
+          pip install finance-datareader pandas requests
 
       - name: 🔄 ETF 시세 업데이트 실행
         id: run_update
