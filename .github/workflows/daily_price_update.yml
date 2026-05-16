@@ -44,7 +44,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       # ── 3. 필요 패키지 설치 ────────────────────────────────────
       - name: 📦 패키지 설치 (FinanceDataReader)
