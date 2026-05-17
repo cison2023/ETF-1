@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETF 월별 주당 분배금 조회</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="./prices_data.js" onerror="console.log('prices_data.js 없음')"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #1c2230;
+  --bg4: #21262d;
+  --border: #30363d;
+  --border2: #484f58;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #6e7681;
+  --blue: #58a6ff;
+  --blue2: #1f6feb;
+  --green: #3fb950;
+  --amber: #e3b341;
+  --red: #f85149;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+.header {
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #1c3a52, #16232d);
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-left { display: flex; flex-direction: column; gap: 4px; }
+.title { font-size: 20px; font-weight: 700; color: var(--blue); }
+.subtitle { font-size: 12px; color: var(--text2); }
+
+.header-right { display: flex; gap: 10px; align-items: center; }
+.date-input { padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border2); background: var(--bg3); color: var(--text); font-size: 12px; }
+.btn { padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border2); background: var(--bg3); color: var(--text); font-size: 12px; cursor: pointer; transition: all .15s; }
+.btn:hover { background: var(--bg4); border-color: var(--blue); }
+.btn-dropdown { position: relative; }
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  z-index: 100;
+  min-width: 120px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  margin-top: 4px;
+}
+
+.dropdown-menu.active { display: block; }
+.dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text);
+  transition: background .15s;
+  border-bottom: 1px solid var(--border);
+}
+.dropdown-item:last-child { border-bottom: none; }
+.dropdown-item:hover { background: var(--bg3); }
+.dropdown-item.selected { background: var(--blue2); color: #fff; font-weight: 600; }
+
+.add-etf-input-wrapper { position: relative; }
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  z-index: 50;
+  min-width: 250px;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  margin-top: 4px;
+}
+
+.search-results.active { display: block; }
+.search-result-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text);
+  transition: background .15s;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.search-result-item:hover { background: var(--bg3); }
+.search-result-code { color: var(--blue); font-weight: 600; }
+.search-result-name { color: var(--text2); margin-left: 8px; }
+
+.add-etf-input-wrapper { position: relative; }
+
+.btn-add    { padding: 6px 16px; background: var(--green); border: 1px solid var(--green); color: #000; font-weight: 600; cursor: pointer; border-radius: 4px; white-space: nowrap; font-size: 12px; }
+.btn-add:hover { background: #5fe582; }
+.btn-filter { padding: 6px 16px; background: var(--amber); border: 1px solid var(--amber); color: #000; font-weight: 600; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; }
+.btn-filter:hover { background: #f0c050; }
+.btn-upload { padding: 6px 16px; background: #2d333b; border: 1px solid var(--blue); color: var(--blue); font-weight: 600; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; }
+.btn-upload:hover { background: rgba(88,166,255,0.15); }
+.btn-est-off { padding: 6px 16px; background: #1a2010; border: 1px solid #4a6030; color: #6a8050; font-weight: 700; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; transition: all .15s; }
+.btn-est-on  { padding: 6px 16px; background: rgba(163,230,53,0.15); border: 1px solid #a3e635; color: #a3e635; font-weight: 700; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; box-shadow: 0 0 6px rgba(163,230,53,0.3); }
+.btn-est-off:hover { border-color: #a3e635; color: #a3e635; }
+.btn-est-on:hover  { background: rgba(163,230,53,0.25); }
+
+.controls {
+  display: flex;
+  gap: 10px;
+  padding: 10px 20px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.year-display {
+  font-size: 18px;
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.table-wrapper {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 16px 20px;
+  overflow-x: auto;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+th, td { padding: 4px 8px; text-align: center; }
+th {
+  background: var(--bg3);
+  font-weight: 600;
+  color: var(--text2);
+  border-bottom: 2px solid var(--border2);
+  white-space: nowrap;
+}
+
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+th.sortable:hover { color: var(--blue); }
+th.sort-asc::after  { content: ' ▲'; color: var(--blue); font-size: 10px; }
+th.sort-desc::after { content: ' ▼'; color: var(--blue); font-size: 10px; }
+
+td {
+  background: var(--bg2);
+  font-family: 'JetBrains Mono', monospace;
+  border-bottom: none;
+}
+
+.price-col { min-width: 80px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; cursor: default; }
+.price-up   { color: #f85149; }   /* 상승 → 빨강 (한국 주식 관행) */
+.price-dn   { color: #58a6ff; }   /* 하락 → 파랑 */
+.price-flat { color: var(--text2); }
+.price-none { color: var(--text3); font-size: 10px; }
+.est-col-th { background: rgba(163,230,53,0.18) !important; color: #a3e635 !important; font-weight: 700 !important; }
+.est-cell   { background: rgba(163,230,53,0.08); color: #a3e635; font-weight: 700;
+              text-align: right; font-family: 'JetBrains Mono',monospace; font-size: 11px;
+              cursor: text; outline: none; min-width: 90px; }
+.est-cell:focus { background: rgba(163,230,53,0.22); box-shadow: inset 0 0 0 1px #a3e635; }
+/* 숨기기 모드 */
+body.privacy-mode [data-pv] { filter: blur(7px) !important; user-select: none !important; pointer-events: none !important; transition: filter .25s ease; }
+[data-pv] { transition: filter .25s ease; }
+.pv-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.12); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: .02em; transition: background .15s; white-space: nowrap; }
+.pv-btn:hover { background: rgba(255,255,255,.25); }
+.pv-btn.on { background: rgba(220,80,80,.6); border-color: rgba(255,120,120,.4); }
+.subtotal-row td { font-size: 11px; font-weight: 700; border-top: 1px solid var(--border2); border-bottom: 1px solid var(--border2); }
+.subtotal-월초 td { background: rgba(58,130,246,0.10); color: #93c5fd; }
+.subtotal-중순 td { background: rgba(250,204,21,0.12); color: #fde047; }
+.subtotal-기타 td { background: rgba(255,255,255,0.05); color: var(--text2); }
+.code-col { color: var(--blue); min-width: 70px; }
+.name-col { text-align: left; min-width: 200px; color: var(--text); white-space: nowrap; }
+.period-col, .date-col { min-width: 90px; cursor: pointer; padding: 4px 6px; border-radius: 3px; transition: background .15s; }
+.period-col:hover, .date-col:hover { background: rgba(88, 166, 255, 0.1); }
+
+.div-cell {
+  font-weight: 500;
+  min-width: 55px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  transition: background .15s;
+}
+.div-cell:hover { background: rgba(63, 185, 80, 0.1); }
+.div-cell.has-data { color: var(--green); }
+.div-cell.no-data { color: var(--text3); }
+
+.total-row td {
+  background: var(--bg3);
+  font-weight: 700;
+  border-top: 2px solid var(--border2);
+}
+.total-val { color: var(--green); }
+
+/* Modal */
+.modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+.modal.active { display: flex; }
+.modal-content {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+.modal-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
+.modal-field { margin-bottom: 12px; }
+.modal-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; display: block; font-weight: 600; }
+.modal-input, .modal-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  background: var(--bg3);
+  color: var(--text);
+  font-size: 12px;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+.modal-input:focus, .modal-select:focus { outline: none; border-color: var(--blue); }
+
+.modal-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.modal-btn { padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border2); background: var(--bg3); color: var(--text); font-size: 12px; cursor: pointer; }
+.modal-btn:hover { background: var(--bg4); }
+.modal-btn.save { background: var(--green); border-color: var(--green); color: #000; font-weight: 600; }
+.modal-btn.save:hover { background: #5fe582; }
+
+.period-option {
+  display: inline-block;
+  padding: 6px 12px;
+  margin: 6px 4px 6px 0;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  background: var(--bg3);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all .15s;
+  min-width: 70px;
+  text-align: center;
+}
+.period-option.selected {
+  background: var(--blue2);
+  border-color: var(--blue);
+  color: #fff;
+  font-weight: 600;
+}
+.period-option:hover { border-color: var(--blue); background: rgba(88,166,255,0.1); }
+
+.direct-input-field {
+  display: none;
+  margin-top: 12px;
+}
+
+.direct-input-field.active {
+  display: block;
+}
+
+.etf-name-display { font-size: 12px; color: var(--green); margin-top: 4px; }
+.etf-name-display.error { color: var(--red); }
+</style>
+<script id="pricesEmbedded">// 내장 시세 데이터 (2026-04-06 ~ 2026-05-15)
+window.PRICES_EMBEDDED={"2026-05-08":{"476800":{"today":4815,"prev":4740,"src":"Python"},"0008S0":{"today":10100,"prev":10040,"src":"Python"},"0052D0":{"today":16750,"prev":16720,"src":"Python"},"498410":{"today":12875,"prev":12960,"src":"Python"},"466940":{"today":26310,"prev":26455,"src":"Python"},"498400":{"today":23355,"prev":23270,"src":"Python"},"489030":{"today":7890,"prev":7835,"src":"Python"},"475720":{"today":14745,"prev":14685,"src":"Python"},"474220":{"today":16385,"prev":16100,"src":"Python"},"441680":{"today":11350,"prev":11250,"src":"Python"},"482730":{"today":12350,"prev":12200,"src":"Python"},"458760":{"today":11050,"prev":10950,"src":"Python"},"088980":{"today":11290,"prev":11260,"src":"Python"},"0086B0":{"today":10925,"prev":10760,"src":"Python"},"352540":{"today":11805,"prev":11930,"src":"Python"},"0089D0":{"today":13800,"prev":13950,"src":"Python"},"0098N0":{"today":13425,"prev":13410,"src":"Python"},"0097L0":{"today":13590,"prev":13625,"src":"Python"},"0105E0":{"today":14355,"prev":14295,"src":"Python"},"329200":{"today":4530,"prev":4470,"src":"Python"},"481060":{"today":7950,"prev":7965,"src":"Python"},"0153K0":{"today":12275,"prev":12385,"src":"Python"},"433970":{"today":14245,"prev":14190,"src":"Python"},"0025N0":{"today":12240,"prev":12090,"src":"Python"},"486290":{"today":11480,"prev":11315,"src":"Python"}},"2026-05-07":{"476800":{"today":4740,"prev":4675,"src":"Python"},"0008S0":{"today":10040,"prev":10110,"src":"Python"},"0052D0":{"today":16720,"prev":16700,"src":"Python"},"498410":{"today":12960,"prev":12950,"src":"Python"},"466940":{"today":26455,"prev":26290,"src":"Python"},"498400":{"today":23270,"prev":22825,"src":"Python"},"489030":{"today":7835,"prev":8015,"src":"Python"},"475720":{"today":14685,"prev":14530,"src":"Python"},"474220":{"today":16100,"prev":15915,"src":"Python"},"441680":{"today":11250,"prev":11280,"src":"Python"},"482730":{"today":12200,"prev":12110,"src":"Python"},"458760":{"today":10950,"prev":11010,"src":"Python"},"088980":{"today":11260,"prev":11250,"src":"Python"},"0086B0":{"today":10760,"prev":10590,"src":"Python"},"352540":{"today":11930,"prev":11845,"src":"Python"},"0089D0":{"today":13950,"prev":13755,"src":"Python"},"0098N0":{"today":13410,"prev":13330,"src":"Python"},"0097L0":{"today":13625,"prev":13545,"src":"Python"},"0105E0":{"today":14295,"prev":14190,"src":"Python"},"329200":{"today":4470,"prev":4340,"src":"Python"},"481060":{"today":7965,"prev":7930,"src":"Python"},"0153K0":{"today":12385,"prev":12400,"src":"Python"},"433970":{"today":14190,"prev":14065,"src":"Python"},"0025N0":{"today":12090,"prev":11970,"src":"Python"},"486290":{"today":11315,"prev":11150,"src":"Python"}},"2026-05-06":{"476800":{"today":4675,"prev":4805,"src":"Python"},"0008S0":{"today":10110,"prev":10170,"src":"Python"},"0052D0":{"today":16700,"prev":16715,"src":"Python"},"498410":{"today":12950,"prev":13065,"src":"Python"},"466940":{"today":26290,"prev":26190,"src":"Python"},"498400":{"today":22825,"prev":21440,"src":"Python"},"489030":{"today":8015,"prev":8490,"src":"Python"},"475720":{"today":14530,"prev":14115,"src":"Python"},"474220":{"today":15915,"prev":16090,"src":"Python"},"441680":{"today":11280,"prev":11340,"src":"Python"},"482730":{"today":12110,"prev":12135,"src":"Python"},"458760":{"today":11010,"prev":11135,"src":"Python"},"088980":{"today":11250,"prev":11300,"src":"Python"},"0086B0":{"today":10590,"prev":10960,"src":"Python"},"352540":{"today":11845,"prev":11835,"src":"Python"},"0089D0":{"today":13755,"prev":13675,"src":"Python"},"0098N0":{"today":13330,"prev":13360,"src":"Python"},"0097L0":{"today":13545,"prev":13510,"src":"Python"},"0105E0":{"today":14190,"prev":14035,"src":"Python"},"329200":{"today":4340,"prev":4530,"src":"Python"},"481060":{"today":7930,"prev":7915,"src":"Python"},"0153K0":{"today":12400,"prev":12195,"src":"Python"},"433970":{"today":14065,"prev":14075,"src":"Python"},"0025N0":{"today":11970,"prev":11995,"src":"Python"},"486290":{"today":11150,"prev":11070,"src":"Python"}},"2026-05-04":{"476800":{"today":4805,"prev":4855,"src":"Python"},"0008S0":{"today":10170,"prev":10145,"src":"Python"},"0052D0":{"today":16715,"prev":16520,"src":"Python"},"498410":{"today":13065,"prev":13050,"src":"Python"},"466940":{"today":26190,"prev":26280,"src":"Python"},"498400":{"today":21440,"prev":20510,"src":"Python"},"489030":{"today":8490,"prev":8510,"src":"Python"},"475720":{"today":14115,"prev":13790,"src":"Python"},"474220":{"today":16090,"prev":16175,"src":"Python"},"441680":{"today":11340,"prev":11350,"src":"Python"},"482730":{"today":12135,"prev":12050,"src":"Python"},"458760":{"today":11135,"prev":11130,"src":"Python"},"088980":{"today":11300,"prev":11350,"src":"Python"},"0086B0":{"today":10960,"prev":11190,"src":"Python"},"352540":{"today":11835,"prev":11910,"src":"Python"},"0089D0":{"today":13675,"prev":13560,"src":"Python"},"0098N0":{"today":13360,"prev":13240,"src":"Python"},"0097L0":{"today":13510,"prev":13250,"src":"Python"},"0105E0":{"today":14035,"prev":13805,"src":"Python"},"329200":{"today":4530,"prev":4665,"src":"Python"},"481060":{"today":7915,"prev":7885,"src":"Python"},"0153K0":{"today":12195,"prev":11870,"src":"Python"},"433970":{"today":14075,"prev":14000,"src":"Python"},"0025N0":{"today":11995,"prev":11930,"src":"Python"},"486290":{"today":11070,"prev":10935,"src":"Python"}},"2026-04-30":{"476800":{"today":4855,"prev":4880,"src":"Python"},"0008S0":{"today":10145,"prev":10120,"src":"Python"},"0052D0":{"today":16520,"prev":16650,"src":"Python"},"498410":{"today":13050,"prev":13080,"src":"Python"},"466940":{"today":26280,"prev":26470,"src":"Python"},"498400":{"today":20510,"prev":20610,"src":"Python"},"489030":{"today":8510,"prev":8515,"src":"Python"},"475720":{"today":13790,"prev":13780,"src":"Python"},"474220":{"today":16175,"prev":16235,"src":"Python"},"441680":{"today":11350,"prev":11340,"src":"Python"},"482730":{"today":12050,"prev":12120,"src":"Python"},"458760":{"today":11130,"prev":11080,"src":"Python"},"088980":{"today":11350,"prev":11370,"src":"Python"},"0086B0":{"today":11190,"prev":11180,"src":"Python"},"352540":{"today":11910,"prev":11950,"src":"Python"},"0089D0":{"today":13560,"prev":13560,"src":"Python"},"0098N0":{"today":13240,"prev":13400,"src":"Python"},"0097L0":{"today":13250,"prev":13360,"src":"Python"},"0105E0":{"today":13805,"prev":13850,"src":"Python"},"329200":{"today":4665,"prev":4650,"src":"Python"},"481060":{"today":7885,"prev":7960,"src":"Python"},"0153K0":{"today":11870,"prev":12055,"src":"Python"},"433970":{"today":14000,"prev":14025,"src":"Python"},"0025N0":{"today":11930,"prev":11990,"src":"Python"},"486290":{"today":10935,"prev":10930,"src":"Python"}},"2026-04-29":{"476800":{"today":4880,"prev":5065,"src":"Python"},"0008S0":{"today":10120,"prev":10020,"src":"Python"},"0052D0":{"today":16650,"prev":16595,"src":"Python"},"498410":{"today":13080,"prev":13295,"src":"Python"},"466940":{"today":26470,"prev":26500,"src":"Python"},"498400":{"today":20610,"prev":20455,"src":"Python"},"489030":{"today":8515,"prev":8685,"src":"Python"},"475720":{"today":13780,"prev":14020,"src":"Python"},"474220":{"today":16235,"prev":16155,"src":"Python"},"441680":{"today":11340,"prev":11420,"src":"Python"},"482730":{"today":12120,"prev":12225,"src":"Python"},"458760":{"today":11080,"prev":11090,"src":"Python"},"088980":{"today":11370,"prev":11420,"src":"Python"},"0086B0":{"today":11180,"prev":11700,"src":"Python"},"352540":{"today":11950,"prev":11895,"src":"Python"},"0089D0":{"today":13560,"prev":13700,"src":"Python"},"0098N0":{"today":13400,"prev":13390,"src":"Python"},"0097L0":{"today":13360,"prev":13565,"src":"Python"},"0105E0":{"today":13850,"prev":13860,"src":"Python"},"329200":{"today":4650,"prev":4925,"src":"Python"},"481060":{"today":7960,"prev":7945,"src":"Python"},"0153K0":{"today":12055,"prev":12080,"src":"Python"},"433970":{"today":14025,"prev":14050,"src":"Python"},"0025N0":{"today":11990,"prev":11980,"src":"Python"},"486290":{"today":10930,"prev":11070,"src":"Python"}},"2026-04-28":{"476800":{"today":5065,"prev":5100,"src":"Python"},"0008S0":{"today":10020,"prev":10035,"src":"Python"},"0052D0":{"today":16595,"prev":16470,"src":"Python"},"498410":{"today":13295,"prev":13225,"src":"Python"},"466940":{"today":26500,"prev":26270,"src":"Python"},"498400":{"today":20455,"prev":20375,"src":"Python"},"489030":{"today":8685,"prev":8665,"src":"Python"},"475720":{"today":14020,"prev":13995,"src":"Python"},"474220":{"today":16155,"prev":16080,"src":"Python"},"441680":{"today":11420,"prev":11420,"src":"Python"},"482730":{"today":12225,"prev":12205,"src":"Python"},"458760":{"today":11090,"prev":11130,"src":"Python"},"088980":{"today":11420,"prev":11370,"src":"Python"},"0086B0":{"today":11700,"prev":11805,"src":"Python"},"352540":{"today":11895,"prev":12030,"src":"Python"},"0089D0":{"today":13700,"prev":13575,"src":"Python"},"0098N0":{"today":13390,"prev":13300,"src":"Python"},"0097L0":{"today":13565,"prev":13450,"src":"Python"},"0105E0":{"today":13860,"prev":13685,"src":"Python"},"329200":{"today":4925,"prev":4955,"src":"Python"},"481060":{"today":7945,"prev":7960,"src":"Python"},"0153K0":{"today":12080,"prev":11980,"src":"Python"},"433970":{"today":14050,"prev":14065,"src":"Python"},"0025N0":{"today":11980,"prev":11970,"src":"Python"},"486290":{"today":11070,"prev":11065,"src":"Python"}},"2026-04-27":{"476800":{"today":5100,"prev":5095,"src":"Python"},"0008S0":{"today":10035,"prev":10120,"src":"Python"},"0052D0":{"today":16470,"prev":16560,"src":"Python"},"498410":{"today":13225,"prev":13300,"src":"Python"},"466940":{"today":26270,"prev":26505,"src":"Python"},"498400":{"today":20375,"prev":19935,"src":"Python"},"489030":{"today":8665,"prev":8680,"src":"Python"},"475720":{"today":13995,"prev":13715,"src":"Python"},"474220":{"today":16080,"prev":15985,"src":"Python"},"441680":{"today":11420,"prev":11415,"src":"Python"},"482730":{"today":12205,"prev":12205,"src":"Python"},"458760":{"today":11130,"prev":11225,"src":"Python"},"088980":{"today":11370,"prev":11390,"src":"Python"},"0086B0":{"today":11805,"prev":11735,"src":"Python"},"352540":{"today":12030,"prev":12100,"src":"Python"},"0089D0":{"today":13575,"prev":13615,"src":"Python"},"0098N0":{"today":13300,"prev":13285,"src":"Python"},"0097L0":{"today":13450,"prev":13280,"src":"Python"},"0105E0":{"today":13685,"prev":13720,"src":"Python"},"329200":{"today":4955,"prev":4955,"src":"Python"},"481060":{"today":7960,"prev":7970,"src":"Python"},"0153K0":{"today":11980,"prev":12030,"src":"Python"},"433970":{"today":14065,"prev":14065,"src":"Python"},"0025N0":{"today":11970,"prev":11995,"src":"Python"},"486290":{"today":11065,"prev":11025,"src":"Python"}},"2026-04-24":{"476800":{"today":5095,"prev":5075,"src":"Python"},"0008S0":{"today":10120,"prev":10010,"src":"Python"},"0052D0":{"today":16560,"prev":16485,"src":"Python"},"498410":{"today":13300,"prev":13170,"src":"Python"},"466940":{"today":26505,"prev":26445,"src":"Python"},"498400":{"today":19935,"prev":20000,"src":"Python"},"489030":{"today":8680,"prev":8650,"src":"Python"},"475720":{"today":13715,"prev":13730,"src":"Python"},"474220":{"today":15985,"prev":16035,"src":"Python"},"441680":{"today":11415,"prev":11390,"src":"Python"},"482730":{"today":12205,"prev":12170,"src":"Python"},"458760":{"today":11225,"prev":11110,"src":"Python"},"088980":{"today":11390,"prev":11380,"src":"Python"},"0086B0":{"today":11735,"prev":11640,"src":"Python"},"352540":{"today":12100,"prev":12100,"src":"Python"},"0089D0":{"today":13615,"prev":13510,"src":"Python"},"0098N0":{"today":13285,"prev":13295,"src":"Python"},"0097L0":{"today":13280,"prev":13300,"src":"Python"},"0105E0":{"today":13720,"prev":13750,"src":"Python"},"329200":{"today":4955,"prev":4935,"src":"Python"},"481060":{"today":7970,"prev":7970,"src":"Python"},"0153K0":{"today":12030,"prev":12055,"src":"Python"},"433970":{"today":14065,"prev":14040,"src":"Python"},"0025N0":{"today":11995,"prev":11945,"src":"Python"},"486290":{"today":11025,"prev":10975,"src":"Python"}},"2026-04-23":{"476800":{"today":5075,"prev":5075,"src":"Python"},"0008S0":{"today":10010,"prev":9990,"src":"Python"},"0052D0":{"today":16485,"prev":16455,"src":"Python"},"498410":{"today":13170,"prev":13195,"src":"Python"},"466940":{"today":26445,"prev":26455,"src":"Python"},"498400":{"today":20000,"prev":19765,"src":"Python"},"489030":{"today":8650,"prev":8685,"src":"Python"},"475720":{"today":13730,"prev":13620,"src":"Python"},"474220":{"today":16035,"prev":15895,"src":"Python"},"441680":{"today":11390,"prev":11320,"src":"Python"},"482730":{"today":12170,"prev":12120,"src":"Python"},"458760":{"today":11110,"prev":11065,"src":"Python"},"088980":{"today":11380,"prev":11430,"src":"Python"},"0086B0":{"today":11640,"prev":11680,"src":"Python"},"352540":{"today":12100,"prev":12145,"src":"Python"},"0089D0":{"today":13510,"prev":13540,"src":"Python"},"0098N0":{"today":13295,"prev":13300,"src":"Python"},"0097L0":{"today":13300,"prev":13145,"src":"Python"},"0105E0":{"today":13750,"prev":13735,"src":"Python"},"329200":{"today":4935,"prev":4910,"src":"Python"},"481060":{"today":7970,"prev":7990,"src":"Python"},"0153K0":{"today":12055,"prev":12030,"src":"Python"},"433970":{"today":14040,"prev":14055,"src":"Python"},"0025N0":{"today":11945,"prev":11950,"src":"Python"},"486290":{"today":10975,"prev":10885,"src":"Python"}},"2026-04-22":{"476800":{"today":5075,"prev":5025,"src":"Python"},"0008S0":{"today":9990,"prev":9945,"src":"Python"},"0052D0":{"today":16455,"prev":16560,"src":"Python"},"498410":{"today":13195,"prev":13380,"src":"Python"},"466940":{"today":26455,"prev":26940,"src":"Python"},"498400":{"today":19765,"prev":19680,"src":"Python"},"489030":{"today":8685,"prev":8750,"src":"Python"},"475720":{"today":13620,"prev":13560,"src":"Python"},"474220":{"today":15895,"prev":15890,"src":"Python"},"441680":{"today":11320,"prev":11255,"src":"Python"},"482730":{"today":12120,"prev":12105,"src":"Python"},"458760":{"today":11065,"prev":11010,"src":"Python"},"088980":{"today":11430,"prev":11400,"src":"Python"},"0086B0":{"today":11680,"prev":11550,"src":"Python"},"352540":{"today":12145,"prev":12240,"src":"Python"},"0089D0":{"today":13540,"prev":13700,"src":"Python"},"0098N0":{"today":13300,"prev":13390,"src":"Python"},"0097L0":{"today":13145,"prev":13115,"src":"Python"},"0105E0":{"today":13735,"prev":13855,"src":"Python"},"329200":{"today":4910,"prev":4850,"src":"Python"},"481060":{"today":7990,"prev":8015,"src":"Python"},"0153K0":{"today":12030,"prev":12085,"src":"Python"},"433970":{"today":14055,"prev":14060,"src":"Python"},"0025N0":{"today":11950,"prev":11940,"src":"Python"},"486290":{"today":10885,"prev":10830,"src":"Python"}},"2026-04-21":{"476800":{"today":5025,"prev":4980,"src":"Python"},"0008S0":{"today":9945,"prev":9965,"src":"Python"},"0052D0":{"today":16560,"prev":16515,"src":"Python"},"498410":{"today":13380,"prev":13460,"src":"Python"},"466940":{"today":26940,"prev":27040,"src":"Python"},"498400":{"today":19680,"prev":19230,"src":"Python"},"489030":{"today":8750,"prev":8830,"src":"Python"},"475720":{"today":13560,"prev":13325,"src":"Python"},"474220":{"today":15890,"prev":15900,"src":"Python"},"441680":{"today":11255,"prev":11230,"src":"Python"},"482730":{"today":12105,"prev":12090,"src":"Python"},"458760":{"today":11010,"prev":11060,"src":"Python"},"088980":{"today":11400,"prev":11380,"src":"Python"},"0086B0":{"today":11550,"prev":11400,"src":"Python"},"352540":{"today":12240,"prev":12315,"src":"Python"},"0089D0":{"today":13700,"prev":13725,"src":"Python"},"0098N0":{"today":13390,"prev":13430,"src":"Python"},"0097L0":{"today":13115,"prev":13085,"src":"Python"},"0105E0":{"today":13855,"prev":13870,"src":"Python"},"329200":{"today":4850,"prev":4795,"src":"Python"},"481060":{"today":8015,"prev":7980,"src":"Python"},"0153K0":{"today":12085,"prev":12150,"src":"Python"},"433970":{"today":14060,"prev":14055,"src":"Python"},"0025N0":{"today":11940,"prev":11915,"src":"Python"},"486290":{"today":10830,"prev":10810,"src":"Python"}},"2026-04-20":{"476800":{"today":4980,"prev":4960,"src":"Python"},"0008S0":{"today":9965,"prev":9965,"src":"Python"},"0052D0":{"today":16515,"prev":16465,"src":"Python"},"498410":{"today":13460,"prev":13495,"src":"Python"},"466940":{"today":27040,"prev":26880,"src":"Python"},"498400":{"today":19230,"prev":19105,"src":"Python"},"489030":{"today":8830,"prev":8805,"src":"Python"},"475720":{"today":13325,"prev":13210,"src":"Python"},"474220":{"today":15900,"prev":15860,"src":"Python"},"441680":{"today":11230,"prev":11170,"src":"Python"},"482730":{"today":12090,"prev":12055,"src":"Python"},"458760":{"today":11060,"prev":11055,"src":"Python"},"088980":{"today":11380,"prev":11360,"src":"Python"},"0086B0":{"today":11400,"prev":11400,"src":"Python"},"352540":{"today":12315,"prev":12340,"src":"Python"},"0089D0":{"today":13725,"prev":13780,"src":"Python"},"0098N0":{"today":13430,"prev":13445,"src":"Python"},"0097L0":{"today":13085,"prev":13085,"src":"Python"},"0105E0":{"today":13870,"prev":13890,"src":"Python"},"329200":{"today":4795,"prev":4770,"src":"Python"},"481060":{"today":7980,"prev":7960,"src":"Python"},"0153K0":{"today":12150,"prev":12130,"src":"Python"},"433970":{"today":14055,"prev":14010,"src":"Python"},"0025N0":{"today":11915,"prev":11915,"src":"Python"},"486290":{"today":10810,"prev":10770,"src":"Python"}},"2026-04-17":{"476800":{"today":4960,"prev":4945,"src":"Python"},"0008S0":{"today":9965,"prev":9875,"src":"Python"},"0052D0":{"today":16465,"prev":16460,"src":"Python"},"498410":{"today":13495,"prev":13475,"src":"Python"},"466940":{"today":26880,"prev":26955,"src":"Python"},"498400":{"today":19105,"prev":19150,"src":"Python"},"489030":{"today":8805,"prev":8790,"src":"Python"},"475720":{"today":13210,"prev":13220,"src":"Python"},"474220":{"today":15860,"prev":15885,"src":"Python"},"441680":{"today":11170,"prev":11160,"src":"Python"},"482730":{"today":12055,"prev":12005,"src":"Python"},"458760":{"today":11055,"prev":10955,"src":"Python"},"088980":{"today":11360,"prev":11410,"src":"Python"},"0086B0":{"today":11400,"prev":11275,"src":"Python"},"352540":{"today":12340,"prev":12360,"src":"Python"},"0089D0":{"today":13780,"prev":13750,"src":"Python"},"0098N0":{"today":13445,"prev":13400,"src":"Python"},"0097L0":{"today":13085,"prev":13085,"src":"Python"},"0105E0":{"today":13890,"prev":13820,"src":"Python"},"329200":{"today":4770,"prev":4750,"src":"Python"},"481060":{"today":7960,"prev":7985,"src":"Python"},"0153K0":{"today":12130,"prev":12140,"src":"Python"},"433970":{"today":14010,"prev":13980,"src":"Python"},"0025N0":{"today":11915,"prev":11885,"src":"Python"},"486290":{"today":10770,"prev":10710,"src":"Python"}},"2026-04-16":{"476800":{"today":4945,"prev":4930,"src":"Python"},"0008S0":{"today":9875,"prev":9885,"src":"Python"},"0052D0":{"today":16460,"prev":16340,"src":"Python"},"498410":{"today":13475,"prev":13390,"src":"Python"},"466940":{"today":26955,"prev":26730,"src":"Python"},"498400":{"today":19150,"prev":18860,"src":"Python"},"489030":{"today":8790,"prev":8795,"src":"Python"},"475720":{"today":13220,"prev":13110,"src":"Python"},"474220":{"today":15885,"prev":15530,"src":"Python"},"441680":{"today":11160,"prev":11155,"src":"Python"},"482730":{"today":12005,"prev":11905,"src":"Python"},"458760":{"today":10955,"prev":11030,"src":"Python"},"088980":{"today":11410,"prev":11320,"src":"Python"},"0086B0":{"today":11275,"prev":11245,"src":"Python"},"352540":{"today":12360,"prev":12345,"src":"Python"},"0089D0":{"today":13750,"prev":13670,"src":"Python"},"0098N0":{"today":13400,"prev":13260,"src":"Python"},"0097L0":{"today":13085,"prev":12935,"src":"Python"},"0105E0":{"today":13820,"prev":13630,"src":"Python"},"329200":{"today":4750,"prev":4725,"src":"Python"},"481060":{"today":7985,"prev":8010,"src":"Python"},"0153K0":{"today":12140,"prev":12040,"src":"Python"},"433970":{"today":13980,"prev":13930,"src":"Python"},"0025N0":{"today":11885,"prev":11795,"src":"Python"},"486290":{"today":10710,"prev":10545,"src":"Python"}},"2026-04-15":{"476800":{"today":4930,"prev":4995,"src":"Python"},"0008S0":{"today":9885,"prev":9975,"src":"Python"},"0052D0":{"today":16340,"prev":16200,"src":"Python"},"498410":{"today":13390,"prev":13440,"src":"Python"},"466940":{"today":26730,"prev":26580,"src":"Python"},"498400":{"today":18860,"prev":18500,"src":"Python"},"489030":{"today":8795,"prev":8795,"src":"Python"},"475720":{"today":13110,"prev":12975,"src":"Python"},"474220":{"today":15530,"prev":15290,"src":"Python"},"441680":{"today":11155,"prev":11205,"src":"Python"},"482730":{"today":11905,"prev":11805,"src":"Python"},"458760":{"today":11030,"prev":11115,"src":"Python"},"088980":{"today":11320,"prev":11300,"src":"Python"},"0086B0":{"today":11245,"prev":11290,"src":"Python"},"352540":{"today":12345,"prev":12335,"src":"Python"},"0089D0":{"today":13670,"prev":13585,"src":"Python"},"0098N0":{"today":13260,"prev":13150,"src":"Python"},"0097L0":{"today":12935,"prev":12850,"src":"Python"},"0105E0":{"today":13630,"prev":13520,"src":"Python"},"329200":{"today":4725,"prev":4775,"src":"Python"},"481060":{"today":8010,"prev":7990,"src":"Python"},"0153K0":{"today":12040,"prev":11915,"src":"Python"},"433970":{"today":13930,"prev":13880,"src":"Python"},"0025N0":{"today":11795,"prev":11705,"src":"Python"},"486290":{"today":10545,"prev":10435,"src":"Python"}},"2026-04-14":{"476800":{"today":4995,"prev":4970,"src":"Python"},"0008S0":{"today":9975,"prev":9965,"src":"Python"},"0052D0":{"today":16200,"prev":16020,"src":"Python"},"498410":{"today":13440,"prev":13285,"src":"Python"},"466940":{"today":26580,"prev":26115,"src":"Python"},"498400":{"today":18500,"prev":18075,"src":"Python"},"489030":{"today":8795,"prev":8725,"src":"Python"},"475720":{"today":12975,"prev":12745,"src":"Python"},"474220":{"today":15290,"prev":15135,"src":"Python"},"441680":{"today":11205,"prev":11190,"src":"Python"},"482730":{"today":11805,"prev":11705,"src":"Python"},"458760":{"today":11115,"prev":11110,"src":"Python"},"088980":{"today":11300,"prev":11300,"src":"Python"},"0086B0":{"today":11290,"prev":11215,"src":"Python"},"352540":{"today":12335,"prev":12195,"src":"Python"},"0089D0":{"today":13585,"prev":13385,"src":"Python"},"0098N0":{"today":13150,"prev":12915,"src":"Python"},"0097L0":{"today":12850,"prev":12570,"src":"Python"},"0105E0":{"today":13520,"prev":13240,"src":"Python"},"329200":{"today":4775,"prev":4740,"src":"Python"},"481060":{"today":7990,"prev":7940,"src":"Python"},"0153K0":{"today":11915,"prev":11650,"src":"Python"},"433970":{"today":13880,"prev":13770,"src":"Python"},"0025N0":{"today":11705,"prev":11605,"src":"Python"},"486290":{"today":10435,"prev":10310,"src":"Python"}},"2026-04-13":{"476800":{"today":4970,"prev":4950,"src":"Python"},"0008S0":{"today":9965,"prev":10009,"src":"Python"},"0052D0":{"today":16020,"prev":16049,"src":"Python"},"498410":{"today":13285,"prev":13250,"src":"Python"},"466940":{"today":26115,"prev":26095,"src":"Python"},"498400":{"today":18075,"prev":18168,"src":"Python"},"489030":{"today":8725,"prev":8715,"src":"Python"},"475720":{"today":12745,"prev":12690,"src":"Python"},"474220":{"today":15135,"prev":15025,"src":"Python"},"441680":{"today":11190,"prev":11195,"src":"Python"},"482730":{"today":11705,"prev":11725,"src":"Python"},"458760":{"today":11110,"prev":11170,"src":"Python"},"088980":{"today":11300,"prev":11350,"src":"Python"},"0086B0":{"today":11215,"prev":11200,"src":"Python"},"352540":{"today":12195,"prev":12170,"src":"Python"},"0089D0":{"today":13385,"prev":13429,"src":"Python"},"0098N0":{"today":12915,"prev":12989,"src":"Python"},"0097L0":{"today":12570,"prev":12635,"src":"Python"},"0105E0":{"today":13240,"prev":13359,"src":"Python"},"329200":{"today":4740,"prev":4715,"src":"Python"},"481060":{"today":7940,"prev":7979,"src":"Python"},"0153K0":{"today":11650,"prev":11704,"src":"Python"},"433970":{"today":13770,"prev":13780,"src":"Python"},"0025N0":{"today":11605,"prev":11620,"src":"Python"},"486290":{"today":10310,"prev":10315,"src":"Python"}},"2026-04-10":{"476800":{"today":4950,"prev":4900,"src":"Python"},"0008S0":{"today":10009,"prev":9979,"src":"Python"},"0052D0":{"today":16049,"prev":15790,"src":"Python"},"498410":{"today":13250,"prev":12990,"src":"Python"},"466940":{"today":26095,"prev":25405,"src":"Python"},"498400":{"today":18168,"prev":17961,"src":"Python"},"489030":{"today":8715,"prev":8600,"src":"Python"},"475720":{"today":12690,"prev":12565,"src":"Python"},"474220":{"today":15025,"prev":14812,"src":"Python"},"441680":{"today":11195,"prev":11145,"src":"Python"},"482730":{"today":11725,"prev":11665,"src":"Python"},"458760":{"today":11170,"prev":11180,"src":"Python"},"088980":{"today":11350,"prev":11330,"src":"Python"},"0086B0":{"today":11200,"prev":11085,"src":"Python"},"352540":{"today":12170,"prev":12170,"src":"Python"},"0089D0":{"today":13429,"prev":13151,"src":"Python"},"0098N0":{"today":12989,"prev":12730,"src":"Python"},"0097L0":{"today":12635,"prev":12490,"src":"Python"},"0105E0":{"today":13359,"prev":13110,"src":"Python"},"329200":{"today":4715,"prev":4675,"src":"Python"},"481060":{"today":7979,"prev":7989,"src":"Python"},"0153K0":{"today":11704,"prev":11480,"src":"Python"},"433970":{"today":13780,"prev":13765,"src":"Python"},"0025N0":{"today":11620,"prev":11540,"src":"Python"},"486290":{"today":10315,"prev":10240,"src":"Python"}},"2026-04-09":{"476800":{"today":4900,"prev":4885,"src":"Python-6Months"},"0008S0":{"today":9979,"prev":9979,"src":"Python-6Months"},"0052D0":{"today":15790,"prev":15990,"src":"Python-6Months"},"498410":{"today":12990,"prev":13020,"src":"Python-6Months"},"466940":{"today":25405,"prev":25700,"src":"Python-6Months"},"498400":{"today":17961,"prev":18183,"src":"Python-6Months"},"489030":{"today":8600,"prev":8520,"src":"Python-6Months"},"475720":{"today":12565,"prev":12655,"src":"Python-6Months"},"474220":{"today":14812,"prev":14946,"src":"Python-6Months"},"441680":{"today":11145,"prev":11235,"src":"Python-6Months"},"482730":{"today":11665,"prev":11615,"src":"Python-6Months"},"458760":{"today":11180,"prev":11170,"src":"Python-6Months"},"088980":{"today":11330,"prev":11310,"src":"Python-6Months"},"0086B0":{"today":11085,"prev":11000,"src":"Python-6Months"},"352540":{"today":12170,"prev":12315,"src":"Python-6Months"},"0089D0":{"today":13151,"prev":13240,"src":"Python-6Months"},"0098N0":{"today":12730,"prev":12820,"src":"Python-6Months"},"0097L0":{"today":12490,"prev":12575,"src":"Python-6Months"},"0105E0":{"today":13110,"prev":13259,"src":"Python-6Months"},"329200":{"today":4675,"prev":4645,"src":"Python-6Months"},"481060":{"today":7989,"prev":8014,"src":"Python-6Months"},"0153K0":{"today":11480,"prev":11659,"src":"Python-6Months"},"433970":{"today":13765,"prev":13730,"src":"Python-6Months"},"0025N0":{"today":11540,"prev":11525,"src":"Python-6Months"},"486290":{"today":10240,"prev":10230,"src":"Python-6Months"}},"2026-04-08":{"476800":{"today":4885,"prev":4865,"src":"Python-6Months"},"0008S0":{"today":9979,"prev":10068,"src":"Python-6Months"},"0052D0":{"today":15990,"prev":15481,"src":"Python-6Months"},"498410":{"today":13020,"prev":12555,"src":"Python-6Months"},"466940":{"today":25700,"prev":24535,"src":"Python-6Months"},"498400":{"today":18183,"prev":16975,"src":"Python-6Months"},"489030":{"today":8520,"prev":8470,"src":"Python-6Months"},"475720":{"today":12655,"prev":12195,"src":"Python-6Months"},"474220":{"today":14946,"prev":14703,"src":"Python-6Months"},"441680":{"today":11235,"prev":11175,"src":"Python-6Months"},"482730":{"today":11615,"prev":11490,"src":"Python-6Months"},"458760":{"today":11170,"prev":11260,"src":"Python-6Months"},"088980":{"today":11310,"prev":11270,"src":"Python-6Months"},"0086B0":{"today":11000,"prev":10995,"src":"Python-6Months"},"352540":{"today":12315,"prev":12145,"src":"Python-6Months"},"0089D0":{"today":13240,"prev":12499,"src":"Python-6Months"},"0098N0":{"today":12820,"prev":12338,"src":"Python-6Months"},"0097L0":{"today":12575,"prev":12010,"src":"Python-6Months"},"0105E0":{"today":13259,"prev":12627,"src":"Python-6Months"},"329200":{"today":4645,"prev":4625,"src":"Python-6Months"},"481060":{"today":8014,"prev":7954,"src":"Python-6Months"},"0153K0":{"today":11659,"prev":11196,"src":"Python-6Months"},"433970":{"today":13730,"prev":13610,"src":"Python-6Months"},"0025N0":{"today":11525,"prev":11435,"src":"Python-6Months"},"486290":{"today":10230,"prev":10065,"src":"Python-6Months"}},"2026-04-07":{"476800":{"today":4865,"prev":4860,"src":"Python-6Months"},"0008S0":{"today":10068,"prev":10073,"src":"Python-6Months"},"0052D0":{"today":15481,"prev":15566,"src":"Python-6Months"},"498410":{"today":12555,"prev":12700,"src":"Python-6Months"},"466940":{"today":24535,"prev":24715,"src":"Python-6Months"},"498400":{"today":16975,"prev":16818,"src":"Python-6Months"},"489030":{"today":8470,"prev":8535,"src":"Python-6Months"},"475720":{"today":12195,"prev":12075,"src":"Python-6Months"},"474220":{"today":14703,"prev":14733,"src":"Python-6Months"},"441680":{"today":11175,"prev":11150,"src":"Python-6Months"},"482730":{"today":11490,"prev":11490,"src":"Python-6Months"},"458760":{"today":11260,"prev":11255,"src":"Python-6Months"},"088980":{"today":11270,"prev":11270,"src":"Python-6Months"},"0086B0":{"today":10995,"prev":10976,"src":"Python-6Months"},"352540":{"today":12145,"prev":12130,"src":"Python-6Months"},"0089D0":{"today":12499,"prev":12623,"src":"Python-6Months"},"0098N0":{"today":12338,"prev":12442,"src":"Python-6Months"},"0097L0":{"today":12010,"prev":12040,"src":"Python-6Months"},"0105E0":{"today":12627,"prev":12762,"src":"Python-6Months"},"329200":{"today":4625,"prev":4615,"src":"Python-6Months"},"481060":{"today":7954,"prev":7935,"src":"Python-6Months"},"0153K0":{"today":11196,"prev":11265,"src":"Python-6Months"},"433970":{"today":13610,"prev":13605,"src":"Python-6Months"},"0025N0":{"today":11435,"prev":11420,"src":"Python-6Months"},"486290":{"today":10065,"prev":10085,"src":"Python-6Months"}},"2026-04-06":{"476800":{"today":4860,"prev":4855,"src":"Python-6Months"},"0008S0":{"today":10073,"prev":10083,"src":"Python-6Months"},"0052D0":{"today":15566,"prev":15571,"src":"Python-6Months"},"498410":{"today":12700,"prev":12560,"src":"Python-6Months"},"466940":{"today":24715,"prev":24505,"src":"Python-6Months"},"498400":{"today":16818,"prev":16571,"src":"Python-6Months"},"489030":{"today":8535,"prev":8520,"src":"Python-6Months"},"475720":{"today":12075,"prev":11970,"src":"Python-6Months"},"474220":{"today":14733,"prev":14708,"src":"Python-6Months"},"441680":{"today":11150,"prev":11140,"src":"Python-6Months"},"482730":{"today":11490,"prev":11475,"src":"Python-6Months"},"458760":{"today":11255,"prev":11285,"src":"Python-6Months"},"088980":{"today":11270,"prev":11300,"src":"Python-6Months"},"0086B0":{"today":10976,"prev":10971,"src":"Python-6Months"},"352540":{"today":12130,"prev":12075,"src":"Python-6Months"},"0089D0":{"today":12623,"prev":12469,"src":"Python-6Months"},"0098N0":{"today":12442,"prev":12298,"src":"Python-6Months"},"0097L0":{"today":12040,"prev":11970,"src":"Python-6Months"},"0105E0":{"today":12762,"prev":12617,"src":"Python-6Months"},"329200":{"today":4615,"prev":4620,"src":"Python-6Months"},"481060":{"today":7935,"prev":7959,"src":"Python-6Months"},"0153K0":{"today":11265,"prev":11221,"src":"Python-6Months"},"433970":{"today":13605,"prev":13585,"src":"Python-6Months"},"0025N0":{"today":11420,"prev":11440,"src":"Python-6Months"},"486290":{"today":10085,"prev":10040,"src":"Python-6Months"}},"2026-05-15":{"476800":{"today":4590,"prev":4610,"src":"Python"},"0008S0":{"today":10255,"prev":10215,"src":"Python"},"0052D0":{"today":16780,"prev":16780,"src":"Python"},"498410":{"today":12205,"prev":12445,"src":"Python"},"466940":{"today":25240,"prev":25685,"src":"Python"},"498400":{"today":23215,"prev":24515,"src":"Python"},"489030":{"today":7675,"prev":7770,"src":"Python"},"475720":{"today":14715,"prev":15490,"src":"Python"},"474220":{"today":16730,"prev":16690,"src":"Python"},"441680":{"today":11480,"prev":11565,"src":"Python"},"482730":{"today":12800,"prev":12710,"src":"Python"},"458760":{"today":11215,"prev":11195,"src":"Python"},"088980":{"today":11180,"prev":11250,"src":"Python"},"0086B0":{"today":10385,"prev":10420,"src":"Python"},"352540":{"today":11620,"prev":11590,"src":"Python"},"0089D0":{"today":13190,"prev":13535,"src":"Python"},"0098N0":{"today":13125,"prev":13380,"src":"Python"},"0097L0":{"today":13645,"prev":13775,"src":"Python"},"0105E0":{"today":14155,"prev":14400,"src":"Python"},"329200":{"today":4290,"prev":4340,"src":"Python"},"481060":{"today":7735,"prev":7790,"src":"Python"},"0153K0":{"today":12010,"prev":12325,"src":"Python"},"433970":{"today":14390,"prev":14440,"src":"Python"},"0025N0":{"today":12520,"prev":12465,"src":"Python"},"486290":{"today":11900,"prev":11950,"src":"Python"}},"2026-05-14":{"476800":{"today":4610,"prev":4595,"src":"Python"},"0008S0":{"today":10215,"prev":10295,"src":"Python"},"0052D0":{"today":16780,"prev":16370,"src":"Python"},"498410":{"today":12445,"prev":12150,"src":"Python"},"466940":{"today":25685,"prev":25150,"src":"Python"},"498400":{"today":24515,"prev":24655,"src":"Python"},"489030":{"today":7770,"prev":7555,"src":"Python"},"475720":{"today":15490,"prev":15245,"src":"Python"},"474220":{"today":16690,"prev":16615,"src":"Python"},"441680":{"today":11565,"prev":11570,"src":"Python"},"482730":{"today":12710,"prev":12630,"src":"Python"},"458760":{"today":11195,"prev":11165,"src":"Python"},"088980":{"today":11250,"prev":11180,"src":"Python"},"0086B0":{"today":10420,"prev":10350,"src":"Python"},"352540":{"today":11590,"prev":11605,"src":"Python"},"0089D0":{"today":13535,"prev":13210,"src":"Python"},"0098N0":{"today":13380,"prev":13150,"src":"Python"},"0097L0":{"today":13775,"prev":13410,"src":"Python"},"0105E0":{"today":14400,"prev":14055,"src":"Python"},"329200":{"today":4340,"prev":4250,"src":"Python"},"481060":{"today":7790,"prev":7900,"src":"Python"},"0153K0":{"today":12325,"prev":12010,"src":"Python"},"433970":{"today":14440,"prev":14380,"src":"Python"},"0025N0":{"today":12465,"prev":12435,"src":"Python"},"486290":{"today":11950,"prev":11855,"src":"Python"}},"2026-05-13":{"476800":{"today":4595,"prev":4670,"src":"Python"},"0008S0":{"today":10295,"prev":10235,"src":"Python"},"0052D0":{"today":16370,"prev":16455,"src":"Python"},"498410":{"today":12150,"prev":12355,"src":"Python"},"466940":{"today":25150,"prev":25520,"src":"Python"},"498400":{"today":24655,"prev":24200,"src":"Python"},"489030":{"today":7555,"prev":7520,"src":"Python"},"475720":{"today":15245,"prev":14850,"src":"Python"},"474220":{"today":16615,"prev":16405,"src":"Python"},"441680":{"today":11570,"prev":11440,"src":"Python"},"482730":{"today":12630,"prev":12550,"src":"Python"},"458760":{"today":11165,"prev":11185,"src":"Python"},"088980":{"today":11180,"prev":11220,"src":"Python"},"0086B0":{"today":10350,"prev":10580,"src":"Python"},"352540":{"today":11605,"prev":11670,"src":"Python"},"0089D0":{"today":13210,"prev":13335,"src":"Python"},"0098N0":{"today":13150,"prev":13190,"src":"Python"},"0097L0":{"today":13410,"prev":13450,"src":"Python"},"0105E0":{"today":14055,"prev":14080,"src":"Python"},"329200":{"today":4250,"prev":4325,"src":"Python"},"481060":{"today":7900,"prev":7925,"src":"Python"},"0153K0":{"today":12010,"prev":12030,"src":"Python"},"433970":{"today":14380,"prev":14315,"src":"Python"},"0025N0":{"today":12435,"prev":12365,"src":"Python"},"486290":{"today":11855,"prev":11795,"src":"Python"}},"2026-05-12":{"476800":{"today":4670,"prev":4730,"src":"Python"},"0008S0":{"today":10235,"prev":10110,"src":"Python"},"0052D0":{"today":16455,"prev":16680,"src":"Python"},"498410":{"today":12355,"prev":12625,"src":"Python"},"466940":{"today":25520,"prev":26070,"src":"Python"},"498400":{"today":24200,"prev":24480,"src":"Python"},"489030":{"today":7520,"prev":7650,"src":"Python"},"475720":{"today":14850,"prev":15100,"src":"Python"},"474220":{"today":16405,"prev":16390,"src":"Python"},"441680":{"today":11440,"prev":11390,"src":"Python"},"482730":{"today":12550,"prev":12410,"src":"Python"},"458760":{"today":11185,"prev":11060,"src":"Python"},"088980":{"today":11220,"prev":11230,"src":"Python"},"0086B0":{"today":10580,"prev":10730,"src":"Python"},"352540":{"today":11670,"prev":11770,"src":"Python"},"0089D0":{"today":13335,"prev":13775,"src":"Python"},"0098N0":{"today":13190,"prev":13450,"src":"Python"},"0097L0":{"today":13450,"prev":13645,"src":"Python"},"0105E0":{"today":14080,"prev":14335,"src":"Python"},"329200":{"today":4325,"prev":4435,"src":"Python"},"481060":{"today":7925,"prev":7935,"src":"Python"},"0153K0":{"today":12030,"prev":12260,"src":"Python"},"433970":{"today":14315,"prev":14310,"src":"Python"},"0025N0":{"today":12365,"prev":12255,"src":"Python"},"486290":{"today":11795,"prev":11690,"src":"Python"}},"2026-05-11":{"476800":{"today":4730,"prev":4815,"src":"Python"},"0008S0":{"today":10110,"prev":10100,"src":"Python"},"0052D0":{"today":16680,"prev":16750,"src":"Python"},"498410":{"today":12625,"prev":12875,"src":"Python"},"466940":{"today":26070,"prev":26310,"src":"Python"},"498400":{"today":24480,"prev":23355,"src":"Python"},"489030":{"today":7650,"prev":7890,"src":"Python"},"475720":{"today":15100,"prev":14745,"src":"Python"},"474220":{"today":16390,"prev":16385,"src":"Python"},"441680":{"today":11390,"prev":11350,"src":"Python"},"482730":{"today":12410,"prev":12350,"src":"Python"},"458760":{"today":11060,"prev":11050,"src":"Python"},"088980":{"today":11230,"prev":11290,"src":"Python"},"0086B0":{"today":10730,"prev":10925,"src":"Python"},"352540":{"today":11770,"prev":11805,"src":"Python"},"0089D0":{"today":13775,"prev":13800,"src":"Python"},"0098N0":{"today":13450,"prev":13425,"src":"Python"},"0097L0":{"today":13645,"prev":13590,"src":"Python"},"0105E0":{"today":14335,"prev":14355,"src":"Python"},"329200":{"today":4435,"prev":4530,"src":"Python"},"481060":{"today":7935,"prev":7950,"src":"Python"},"0153K0":{"today":12260,"prev":12275,"src":"Python"},"433970":{"today":14310,"prev":14245,"src":"Python"},"0025N0":{"today":12255,"prev":12240,"src":"Python"},"486290":{"today":11690,"prev":11480,"src":"Python"}}};</script>
+<script id="txRawData">window.TX_RAW_DATA=[{"금융사":"삼성생명","일자":"2025-01-20","계좌구분":"DC","계좌번호":"110019680537-4","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":860.0,"매수단가":14026.581395348838,"매도수량":null,"매도단가":null},{"금융사":"삼성생명","일자":"2025-06-20","계좌구분":"DC","계좌번호":"110019680537-4","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":19.0,"매수단가":17485.0,"매도수량":null,"매도단가":null},{"금융사":"삼성생명","일자":"2025-08-25","계좌구분":"DC","계좌번호":"110019680537-4","종목명":"0052D0__TIGER 코리아배당다우존스","매수수량":5.0,"매수단가":12040.0,"매도수량":null,"매도단가":null},{"금융사":"삼성생명","일자":"2025-09-01","계좌구분":"DC","계좌번호":"110019680537-4","종목명":"0052D0__TIGER 코리아배당다우존스","매수수량":714.0,"매수단가":12199.089635854341,"매도수량":null,"매도단가":null},{"금융사":"삼성생명","일자":"2026-01-13","계좌구분":"DC","계좌번호":"110019680537-4","종목명":"481060__KODEX미국30년국채타겟커버드콜(합성H)","매수수량":1493.0,"매수단가":8267.50167448091,"매도수량":null,"매도단가":null},{"금융사":"삼성생명","일자":"2026-03-11","계좌구분":"DC","계좌번호":"110019680537-4","종목명":"481060__KODEX미국30년국채타겟커버드콜(합성H)","매수수량":29.0,"매수단가":8225.0,"매도수량":null,"매도단가":null},{"금융사":"삼성생명","일자":"2026-03-18","계좌구분":"DC","계좌번호":"110019680537-4","종목명":"481060__KODEX미국30년국채타겟커버드콜(합성H)","매수수량":21.0,"매수단가":8055.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-01-02","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"441680__TIGER미국나스닥100커버드콜(합성)","매수수량":500.0,"매수단가":11720.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-01-02","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"458760__TIGER 미국배당다우존스타겟커버드콜2호","매수수량":500.0,"매수단가":11045.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-01-02","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"474220__TIGER미국테크TOP10타겟커버드콜","매수수량":500.0,"매수단가":15310.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-01-02","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"482730__TIGER미국S&P500타겟데일리커버드콜","매수수량":500.0,"매수단가":11630.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-01-03","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":1000.0,"매수단가":9700.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-01-03","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"498410__KODEX금융고배당TOP10타켓위클리커버드콜","매수수량":800.0,"매수단가":9845.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-01-17","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":617.0,"매수단가":14005.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-02-05","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"498410__KODEX금융고배당TOP10타켓위클리커버드콜","매수수량":16.0,"매수단가":10100.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-02-07","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"441680__TIGER미국나스닥100커버드콜(합성)","매수수량":9.0,"매수단가":11705.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-02-07","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"458760__TIGER 미국배당다우존스타겟커버드콜2호","매수수량":4.0,"매수단가":10840.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-02-07","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"474220__TIGER미국테크TOP10타겟커버드콜","매수수량":3.0,"매수단가":14254.666666666666,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-05-12","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"498410__KODEX금융고배당TOP10타켓위클리커버드콜","매수수량":141.0,"매수단가":10280.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-06-13","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"0052D0__TIGER 코리아배당다우존스","매수수량":286.0,"매수단가":11005.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-06-16","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":850.0,"매수단가":10390.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2025-11-18","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":null,"매수단가":null,"매도수량":1850.0,"매도단가":13220.0},{"금융사":"삼성증권","일자":"2025-11-21","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":1850.0,"매수단가":12930.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2026-01-08","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"0105E0__SOL코리아고배당","매수수량":6.0,"매수단가":10880.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2026-01-13","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"481060__KODEX미국30년국채타겟커버드콜(합성H)","매수수량":452.0,"매수단가":8316.283185840708,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2026-01-20","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"481060__KODEX미국30년국채타겟커버드콜(합성H)","매수수량":50.0,"매수단가":8215.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2026-03-11","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"481060__KODEX미국30년국채타겟커버드콜(합성H)","매수수량":124.0,"매수단가":8220.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2026-03-17","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"481060__KODEX미국30년국채타겟커버드콜(합성H)","매수수량":75.0,"매수단가":8015.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2026-03-19","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"433970__KODEX TDF2030액티브","매수수량":1882.0,"매수단가":13630.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2026-04-22","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"433970__KODEX TDF2030액티브","매수수량":39.0,"매수단가":14015.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2026-04-22","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"481060__KODEX미국30년국채타겟커버드콜(합성H)","매수수량":11.0,"매수단가":7995.0,"매도수량":null,"매도단가":null},{"금융사":"삼성증권","일자":"2026-04-28","계좌구분":"IRP","계좌번호":"7164290730-29","종목명":"0025N0__TIGER TDF2045","매수수량":600.0,"매수단가":11980.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-01-02","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":618.0,"매수단가":13565.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-01-07","계좌구분":"ISA해지 IRP이전","계좌번호":"64656027-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":1000.0,"매수단가":13562.5,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-01-15","계좌구분":"ISA해지 IRP이전","계좌번호":"64656027-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":462.0,"매수단가":13850.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-01-17","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"088980__맥쿼리인프라","매수수량":100.0,"매수단가":10530.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-01-22","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":2.0,"매수단가":14030.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-01-23","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":1.0,"매수단가":14045.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-03","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0008S0__TIGER 미국배당다우존스타겟데일리커버드콜","매수수량":1500.0,"매수단가":9915.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-05","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":3.0,"매수단가":14524.666666666666,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-07","계좌구분":"ISA해지 IRP이전","계좌번호":"64656027-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":9.0,"매수단가":14510.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-18","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":1000.0,"매수단가":9770.11,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-19","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":934.0,"매수단가":9825.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-20","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"088980__맥쿼리인프라","매수수량":500.0,"매수단가":11310.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-25","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0008S0__TIGER 미국배당다우존스타겟데일리커버드콜","매수수량":19.0,"매수단가":9850.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-25","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":13.0,"매수단가":14365.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-25","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"475720__RISE200위클리커버드콜","매수수량":2000.0,"매수단가":8555.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-25","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"489030__PLUS고배당주위클리커버드콜","매수수량":2000.0,"매수단가":9380.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-26","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0008S0__TIGER 미국배당다우존스타겟데일리커버드콜","매수수량":4.0,"매수단가":9815.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-26","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":3.0,"매수단가":14240.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-27","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":66.0,"매수단가":9940.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-27","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"498410__KODEX금융고배당TOP10타켓위클리커버드콜","매수수량":2000.0,"매수단가":9845.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-28","계좌구분":"ISA해지 IRP이전","계좌번호":"64656027-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":3000.0,"매수단가":4765.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-02-28","계좌구분":"리츠분리과세계좌","계좌번호":"64873846-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":7465.0,"매수단가":4755.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-03-05","계좌구분":"리츠분리과세계좌","계좌번호":"64873846-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":3016.0,"매수단가":4770.696286472148,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-03-13","계좌구분":"ISA해지 IRP이전","계좌번호":"64656027-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":6000.0,"매수단가":4760.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-03-17","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0008S0__TIGER 미국배당다우존스타겟데일리커버드콜","매수수량":100.0,"매수단가":10085.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-03-27","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":null,"매수단가":null,"매도수량":19.0,"매도단가":14350.0},{"금융사":"한국투자","일자":"2025-03-31","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"489030__PLUS고배당주위클리커버드콜","매수수량":1000.0,"매수단가":9165.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-03-31","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"498410__KODEX금융고배당TOP10타켓위클리커버드콜","매수수량":1000.0,"매수단가":9745.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-05-15","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0008S0__TIGER 미국배당다우존스타겟데일리커버드콜","매수수량":4000.0,"매수단가":8922.5,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-05-16","계좌구분":"ISA해지 IRP이전","계좌번호":"64656027-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":1000.0,"매수단가":4745.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-05-19","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0008S0__TIGER 미국배당다우존스타겟데일리커버드콜","매수수량":1000.0,"매수단가":8640.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-05-22","계좌구분":"ISA해지 IRP이전","계좌번호":"64656027-01","종목명":"0052D0__TIGER 코리아배당다우존스","매수수량":2000.0,"매수단가":10005.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-05-26","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0008S0__TIGER 미국배당다우존스타겟데일리커버드콜","매수수량":1000.0,"매수단가":8540.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-06-02","계좌구분":"ISA해지 IRP이전","계좌번호":"64656027-01","종목명":"0052D0__TIGER 코리아배당다우존스","매수수량":null,"매수단가":null,"매도수량":2000.0,"매도단가":10430.0},{"금융사":"한국투자","일자":"2025-06-02","계좌구분":"ISA해지 IRP이전","계좌번호":"64656027-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":null,"매수단가":null,"매도수량":1471.0,"매도단가":16090.0},{"금융사":"한국투자","일자":"2025-06-02","계좌구분":"ISA해지 IRP이전","계좌번호":"64656027-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":null,"매수단가":null,"매도수량":10000.0,"매도단가":4720.0},{"금융사":"한국투자","일자":"2025-06-05","계좌구분":"연금","계좌번호":"64014938-22","종목명":"0052D0__TIGER 코리아배당다우존스","매수수량":2000.0,"매수단가":10340.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-06-09","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"0052D0__TIGER 코리아배당다우존스","매수수량":1888.0,"매수단가":10995.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-06-09","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":6000.0,"매수단가":4750.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-06-11","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":4158.0,"매수단가":4755.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-06-11","계좌구분":"연금","계좌번호":"64014938-22","종목명":"0052D0__TIGER 코리아배당다우존스","매수수량":839.0,"매수단가":11055.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-06-11","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0008S0__TIGER 미국배당다우존스타겟데일리커버드콜","매수수량":477.0,"매수단가":8530.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-06-13","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":22.0,"매수단가":4665.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-06-13","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":49.0,"매수단가":4745.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-06-16","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":710.0,"매수단가":4610.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-06-18","계좌구분":"연금","계좌번호":"64014938-22","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":10.0,"매수단가":4610.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-07-22","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":33.0,"매수단가":4670.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-07-22","계좌구분":"리츠분리과세계좌","계좌번호":"64873846-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":77.0,"매수단가":4670.649350649351,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-07-22","계좌구분":"연금","계좌번호":"64014938-22","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":29.0,"매수단가":4670.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-07-31","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0086B0__Tiger리츠부동산인프라TOP10액티브","매수수량":1000.0,"매수단가":10006.46,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-08-05","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0086B0__Tiger리츠부동산인프라TOP10액티브","매수수량":1000.0,"매수단가":10016.46,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-08-07","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"475720__RISE200위클리커버드콜","매수수량":2000.0,"매수단가":9435.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-08-07","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"489030__PLUS고배당주위클리커버드콜","매수수량":1000.0,"매수단가":10445.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-08-14","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0089D0__KODEX금융고배당TOP10","매수수량":500.0,"매수단가":9995.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-08-21","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":24.0,"매수단가":4647.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-08-21","계좌구분":"리츠분리과세계좌","계좌번호":"64873846-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":77.0,"매수단가":4647.181818181818,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-08-21","계좌구분":"연금","계좌번호":"64014938-22","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":29.0,"매수단가":4646.517241379311,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-08-25","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"352540__KODEX일본부동산리츠(H)","매수수량":200.0,"매수단가":12377.5,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-09-05","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":181.0,"매수단가":11035.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-09-10","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0097L0__KIWOOM한국고배당&미국AI테크","매수수량":1000.0,"매수단가":10185.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-09-15","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":150.0,"매수단가":11405.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-09-18","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0098N0__plus 자사주매입고배당주","매수수량":1000.0,"매수단가":10177.5,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-09-19","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0098N0__plus 자사주매입고배당주","매수수량":500.0,"매수단가":10075.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-09-24","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":38.0,"매수단가":4750.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-09-24","계좌구분":"연금","계좌번호":"64014938-22","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":30.0,"매수단가":4747.7,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-09-24","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0098N0__plus 자사주매입고배당주","매수수량":500.0,"매수단가":10120.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-09-25","계좌구분":"리츠분리과세계좌","계좌번호":"64873846-01","종목명":"0105E0__SOL코리아고배당","매수수량":36.0,"매수단가":10125.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-09-25","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0105E0__SOL코리아고배당","매수수량":1000.0,"매수단가":10125.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-11-05","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":30.0,"매수단가":4775.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-11-05","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"489030__PLUS고배당주위클리커버드콜","매수수량":1000.0,"매수단가":8865.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-11-18","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"475720__RISE200위클리커버드콜","매수수량":null,"매수단가":null,"매도수량":4000.0,"매도단가":10822.87625},{"금융사":"한국투자","일자":"2025-11-18","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":null,"매수단가":null,"매도수량":2331.0,"매도단가":13230.0},{"금융사":"한국투자","일자":"2025-11-21","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"475720__RISE200위클리커버드콜","매수수량":2000.0,"매수단가":10635.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-11-24","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"475720__RISE200위클리커버드콜","매수수량":null,"매수단가":null,"매도수량":2000.0,"매도단가":10950.0},{"금융사":"한국투자","일자":"2025-11-25","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"475720__RISE200위클리커버드콜","매수수량":2000.0,"매수단가":10415.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-11-25","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"498400__KODEX200타켓위클리커버드콜","매수수량":2331.0,"매수단가":12625.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-11-26","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"475720__RISE200위클리커버드콜","매수수량":2000.0,"매수단가":10580.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-12-05","계좌구분":"연금","계좌번호":"64014938-22","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":46.0,"매수단가":4890.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-12-08","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"329200__TIGER리츠부동산인프라","매수수량":500.0,"매수단가":4495.64,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-12-09","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"329200__TIGER리츠부동산인프라","매수수량":500.0,"매수단가":4502.64,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-12-23","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"329200__TIGER리츠부동산인프라","매수수량":1000.0,"매수단가":4427.64,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2025-12-30","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":100.0,"매수단가":21430.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-01-06","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"088980__맥쿼리인프라","매수수량":null,"매수단가":null,"매도수량":600.0,"매도단가":11170.0},{"금융사":"한국투자","일자":"2026-01-06","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"352540__KODEX일본부동산리츠(H)","매수수량":null,"매수단가":null,"매도수량":200.0,"매도단가":12826.4},{"금융사":"한국투자","일자":"2026-01-06","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"466940__TIGER은행고배당플러스TOP10","매수수량":null,"매수단가":null,"매도수량":100.0,"매도단가":21125.7},{"금융사":"한국투자","일자":"2026-01-06","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"489030__PLUS고배당주위클리커버드콜","매수수량":null,"매수단가":null,"매도수량":2400.0,"매도단가":8660.0},{"금융사":"한국투자","일자":"2026-01-07","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"329200__TIGER리츠부동산인프라","매수수량":1360.0,"매수단가":4510.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-01-09","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"0097L0__KIWOOM한국고배당&미국AI테크","매수수량":1834.0,"매수단가":10933.81,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-01-09","계좌구분":"연금","계좌번호":"64014938-22","종목명":"0097L0__KIWOOM한국고배당&미국AI테크","매수수량":402.0,"매수단가":10920.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-01-09","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"489030__PLUS고배당주위클리커버드콜","매수수량":null,"매수단가":null,"매도수량":1600.0,"매도단가":8333.125},{"금융사":"한국투자","일자":"2026-01-12","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"481060__KODEX미국30년국채타겟커버드콜(합성H)","매수수량":1000.0,"매수단가":8337.43,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-01-26","계좌구분":"연금","계좌번호":"64014938-22","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":35.0,"매수단가":4909.428571428572,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-01-28","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"0153K0__KODEX 주주환원고배당주","매수수량":500.0,"매수단가":10700.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-02-10","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":12.0,"매수단가":4895.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-02-10","계좌구분":"리츠분리과세계좌","계좌번호":"64873846-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":1.0,"매수단가":4895.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-02-10","계좌구분":"연금","계좌번호":"64014938-22","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":2.0,"매수단가":4895.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-02-25","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"433970__KODEX TDF2030액티브","매수수량":35.0,"매수단가":13725.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-02-25","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"329200__TIGER리츠부동산인프라","매수수량":27.0,"매수단가":4650.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-02-25","계좌구분":"리츠분리과세계좌","계좌번호":"64873846-01","종목명":"0105E0__SOL코리아고배당","매수수량":4.0,"매수단가":14630.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-02-25","계좌구분":"연금","계좌번호":"64014938-22","종목명":"0097L0__KIWOOM한국고배당&미국AI테크","매수수량":11.0,"매수단가":13675.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-05","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"433970__KODEX TDF2030액티브","매수수량":9.0,"매수단가":13695.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-05","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"329200__TIGER리츠부동산인프라","매수수량":17.0,"매수단가":4525.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-05","계좌구분":"연금","계좌번호":"64014938-22","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":3.0,"매수단가":4830.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-06","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"486290__TIGER 미국나스닥100타겟데일리 커버드콜","매수수량":1000.0,"매수단가":10380.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-11","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"329200__TIGER리츠부동산인프라","매수수량":1.0,"매수단가":4530.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-11","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"489030__PLUS고배당주위클리커버드콜","매수수량":1000.0,"매수단가":8885.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-12","계좌구분":"리츠분리과세계좌","계좌번호":"64873846-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":54.0,"매수단가":4800.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-12","계좌구분":"연금","계좌번호":"64014938-22","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":1.0,"매수단가":4800.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-17","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"433970__KODEX TDF2030액티브","매수수량":26.0,"매수단가":13655.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-17","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":26.0,"매수단가":4814.2307692307695,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-17","계좌구분":"리츠분리과세계좌","계좌번호":"64873846-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":58.0,"매수단가":4820.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-03-17","계좌구분":"연금","계좌번호":"64014938-22","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":35.0,"매수단가":4820.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-04-03","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"489030__PLUS고배당주위클리커버드콜","매수수량":1000.0,"매수단가":8580.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-04-07","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"329200__TIGER리츠부동산인프라","매수수량":13.0,"매수단가":5917.307692307692,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-04-22","계좌구분":"IRP","계좌번호":"64719623-29","종목명":"0025N0__TIGER TDF2045","매수수량":2897.0,"매수단가":11935.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-04-22","계좌구분":"리츠분리과세계좌","계좌번호":"64873846-01","종목명":"476800__KODEX한국부동산리츠인프라","매수수량":182.0,"매수단가":5040.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-04-27","계좌구분":"ISA","계좌번호":"43063598-01","종목명":"0097L0__KIWOOM한국고배당&미국AI테크","매수수량":11.0,"매수단가":13335.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-04-27","계좌구분":"연금","계좌번호":"64014938-22","종목명":"0097L0__KIWOOM한국고배당&미국AI테크","매수수량":14.0,"매수단가":13335.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-04-27","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"489030__PLUS고배당주위클리커버드콜","매수수량":500.0,"매수단가":8640.0,"매도수량":null,"매도단가":null},{"금융사":"한국투자","일자":"2026-05-08","계좌구분":"위탁계좌","계좌번호":"68308386-01","종목명":"489030__PLUS고배당주위클리커버드콜","매수수량":500.0,"매수단가":7920.0,"매도수량":null,"매도단가":null}];</script>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="title">◈ ETF 월별 주당 분배금 조회</div>
+    <div class="subtitle">공시된 주당 분배금 (원)</div>
+  </div>
+  <div class="header-right">
+    <span id="priceStatus" style="font-size:11px; color:var(--amber); white-space:nowrap;"></span>
+    <label for="inquiryDate" style="font-size:12px; color:var(--text2);">조회기준일:</label>
+    <input type="date" id="inquiryDate" class="date-input" value="2026-05-16" onchange="renderTable()">
+    <button class="btn" onclick="inquireWithDate()">🔍 조회</button>
+    <button class="btn" onclick="downloadExcel()" style="background:#1d6f42; border-color:#2a9d5c; color:#fff; font-weight:600;">📊 엑셀 다운로드</button>
+  </div>
+</div>
+
+<!-- 컨트롤 + 종목 등록 통합 바 -->
+<div class="controls">
+  <!-- 좌측: 년도 선택 드롭다운 (amber 대형 텍스트 스타일) -->
+  <div class="btn-dropdown" style="position:relative;">
+    <div class="year-display" id="yearDisplay"
+         onclick="toggleYearDropdown()"
+         style="cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px;">
+      📅 <span id="yearLabel">2026</span>년 ▼
+    </div>
+    <div class="dropdown-menu" id="yearDropdown">
+      <div class="dropdown-item selected" onclick="selectYear(2026)">2026년</div>
+      <div class="dropdown-item" onclick="selectYear(2025)">2025년</div>
+    </div>
+  </div>
+
+  <div class="add-etf-input-wrapper" style="position: relative; display:flex; align-items:center; gap:8px; flex:1; max-width:700px; margin: 0 16px; flex-wrap: nowrap;">
+    <input type="text" id="newCode"
+      placeholder="종목코드(466940) 또는 종목명 일부(은행)"
+      maxlength="30" oninput="searchETF()"
+      onkeydown="if(event.key==='Enter') filterTable()"
+      style="flex:1; min-width:200px; padding:6px 12px; border-radius:4px; border:1px solid var(--border2);
+             background:var(--bg3); color:var(--text); font-size:12px; font-family:'Noto Sans KR',sans-serif;">
+    <button class="btn-filter" onclick="filterTable()">🔍 조회</button>
+    <button class="btn-add" onclick="addNewETF()">➕ 등록</button>
+    <input type="file" id="excelUploadInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="importExcel(event)">
+    <button class="btn-upload" onclick="document.getElementById('excelUploadInput').click()">📤 업로드</button>
+    <button id="estToggleBtn" class="btn-est-off" onclick="toggleEstCol()">분배금추정</button>
+    <button id="pvBtn" class="pv-btn" onclick="togglePrivacy()" title="분배금추정 숨기기/보이기">🔒 숨기기</button>
+    <span style="font-size:10px; color:#5a7a30; white-space:nowrap; margin-left:4px;">※ 현재수량기준임에 따라 분배금의 차이가 있을 수 있음</span>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+
+  <div id="filterBadge" style="display:none; font-size:11px; color:var(--amber); font-weight:600; white-space:nowrap;">
+    필터중 — <span style="cursor:pointer; text-decoration:underline;" onclick="clearFilter()">전체보기</span>
+  </div>
+
+</div>
+
+<div class="table-wrapper">
+  <table id="etfTable">
+    <thead id="tableHead"></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<!-- 분배금 편집 모달 -->
+<div class="modal" id="divModal">
+  <div class="modal-content">
+    <div class="modal-title">분배금 수정</div>
+    <div class="modal-field">
+      <label class="modal-label">월별 분배금 (원)</label>
+      <input type="number" class="modal-input" id="divInput" placeholder="0">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">월 합계</label>
+      <div style="font-size:12px; color:var(--green); font-weight:600;" id="monthTotal">0</div>
+    </div>
+    <div class="modal-buttons">
+      <button class="modal-btn" onclick="closeDivModal()">취소</button>
+      <button class="modal-btn save" onclick="saveDivData()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 분배시기 편집 모달 -->
+<div class="modal" id="periodModal">
+  <div class="modal-content">
+    <div class="modal-title">분배시기 선택</div>
+    <div class="modal-field">
+      <label class="modal-label">분배시기 선택</label>
+      <div id="periodOptionsContainer">
+        <div class="period-option" onclick="selectPeriodType('월초')">월초</div>
+        <div class="period-option" onclick="selectPeriodType('중순')">중순</div>
+        <div class="period-option" onclick="selectPeriodType('분기초')">분기초</div>
+        <div class="period-option" onclick="selectPeriodType('직접등록')">직접등록</div>
+      </div>
+    </div>
+    
+    <div class="direct-input-field" id="directInputField">
+      <label class="modal-label">분배예상일 입력</label>
+      <input type="date" class="modal-input" id="directDateInput">
+    </div>
+    
+    <div class="modal-buttons">
+      <button class="modal-btn" onclick="closePeriodModal()">취소</button>
+      <button class="modal-btn save" onclick="savePeriodData()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'etf_dividend_manager_v15';
+
+// 연도별 증권시장 휴장일 (공휴일 + 임시휴장)
+const HOLIDAYS = {
+  2025: [
+    '2025-01-01', '2025-01-28', '2025-01-29', '2025-01-30',
+    '2025-03-01', '2025-05-05', '2025-05-06', '2025-06-06',
+    '2025-08-15', '2025-10-03', '2025-10-06', '2025-10-07', '2025-10-08',
+    '2025-10-09', '2025-12-25', '2025-12-31'
+  ],
+  2026: [
+    '2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18',
+    '2026-03-02', '2026-05-05', '2026-05-15', '2026-06-06',
+    '2026-07-17', '2026-08-15', '2026-09-03', '2026-09-04', '2026-09-05',
+    '2026-10-03', '2026-10-09'
+  ]
+};
+
+// CSV 데이터에서 추출한 ETF 목록
+const csvETFData = {
+  '466940': 'TIGER은행고배당플러스TOP10',
+  '476800': 'KODEX한국부동산리츠인프라',
+  '0052D0': 'TIGER 코리아배당다우존스',
+  '498400': 'KODEX200타켓위클리커버드콜',
+  '475720': 'RISE200위클리커버드콜',
+  '0008S0': 'TIGER 미국배당다우존스타겟데일리커버드콜',
+  '498410': 'KODEX금융고배당TOP10타켓위클리커버드콜',
+  '489030': 'PLUS고배당주위클리커버드콜',
+  '0086B0': 'Tiger리츠부동산인프라TOP10액티브',
+  '088980': '맥쿼리인프라',
+  '0089D0': 'KODEX금융고배당TOP10',
+  '352540': 'KODEX일본부동산리츠(H)',
+  '0097L0': 'KIWOOM한국고배당&미국AI테크',
+  '0098N0': 'plus 자사주매입고배당주',
+  '0105E0': 'SOL코리아고배당',
+  '329200': 'TIGER리츠부동산인프라',
+  '441680': 'TIGER미국나스닥100커버드콜(합성)',
+  '458760': 'TIGER 미국배당다우존스타겟커버드콜2호',
+  '474220': 'TIGER미국테크TOP10타켓커버드콜',
+  '482730': 'TIGER미국S&P500타겟데일리커버드콜',
+  '481060': 'KODEX미국30년국채타겟커버드콜(합성H)',
+  '0153K0': 'KODEX 주주환원고배당주',
+  '433970': 'KODEX TDF2030액티브',
+  '486290': 'TIGER 미국나스닥100타겟데일리 커버드콜',
+  '0025N0': 'TIGER TDF2045'
+};
+
+// 공시된 2026년 분배금 데이터 (백업 엑셀 기준 확정값)
+const publishedDividends2026 = {
+  '0008S0': {freq:'mon',periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:95, 2:102,3:101,4:101,5:102,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0025N0': {freq:'q',  periods:{1:'직접등록',2:'직접등록',3:'직접등록',4:'직접등록',5:'직접등록',6:'직접등록',7:'직접등록',8:'직접등록',9:'직접등록',10:'직접등록',11:'직접등록',12:'직접등록'},customDates:{},data:{1:140,2:0,  3:0,  4:0,  5:0,  6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0052D0': {freq:'mon',periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:51, 2:51, 3:58, 4:58, 5:58, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0086B0': {freq:'mon',periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:54, 2:54, 3:54, 4:54, 5:54, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0089D0': {freq:'q',  periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:27, 2:27, 3:62, 4:66, 5:67, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0097L0': {freq:'mon',periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:30, 2:30, 3:40, 4:40, 5:45, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0098N0': {freq:'mon',periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:40, 2:40, 3:40, 4:70, 5:70, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0105E0': {freq:'mon',periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:60, 2:60, 3:60, 4:60, 5:60, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0153K0': {freq:'mon',periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:0,  2:0,  3:32, 4:33, 5:40, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '088980': {freq:'mon',periods:{1:'직접등록',2:'직접등록',3:'직접등록',4:'직접등록',5:'직접등록',6:'직접등록',7:'직접등록',8:'직접등록',9:'직접등록',10:'직접등록',11:'직접등록',12:'직접등록'},customDates:{},data:{1:0,  2:0,  3:88, 4:0,  5:0,  6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '329200': {freq:'mon',periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:33, 2:33, 3:33, 4:33, 5:33, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '352540': {freq:'mon',periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:63, 2:60, 3:63, 4:64, 5:0,  6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '433970': {freq:'q',  periods:{1:'직접등록',2:'직접등록',3:'직접등록',4:'직접등록',5:'직접등록',6:'직접등록',7:'직접등록',8:'직접등록',9:'직접등록',10:'직접등록',11:'직접등록',12:'직접등록'},customDates:{},data:{1:0,  2:88, 3:0,  4:0,  5:32, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '441680': {freq:'mon',periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:112,2:112,3:110,4:113,5:114,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '458760': {freq:'mon',periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:88, 2:88, 3:94, 4:94, 5:92, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '466940': {freq:'mon',periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:72, 2:73, 3:87, 4:87, 5:87, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '474220': {freq:'mon',periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:134,2:129,3:126,4:126,5:138,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '475720': {freq:'wk', periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:160,2:180,3:200,4:210,5:237,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '476800': {freq:'mon',periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:29, 2:29, 3:29, 4:30, 5:37, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '481060': {freq:'mon',periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:83, 2:83, 3:82, 4:80, 5:79, 6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '482730': {freq:'mon',periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:99, 2:100,3:97, 4:97, 5:101,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '486290': {freq:'mon',periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:0,  2:0,  3:127,4:128,5:138,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '489030': {freq:'wk', periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:135,2:136,3:156,4:135,5:130,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '498400': {freq:'wk', periods:{1:'중순',2:'중순',3:'중순',4:'중순',5:'중순',6:'중순',7:'중순',8:'중순',9:'중순',10:'중순',11:'중순',12:'중순'},customDates:{},data:{1:213,2:244,3:252,4:262,5:348,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '498410': {freq:'wk', periods:{1:'월초',2:'월초',3:'월초',4:'월초',5:'월초',6:'월초',7:'월초',8:'월초',9:'월초',10:'월초',11:'월초',12:'월초'},customDates:{},data:{1:152,2:155,3:189,4:162,5:165,6:0,7:0,8:0,9:0,10:0,11:0,12:0}}
+};
+
+// 공시된 2025년 분배금 데이터
+const publishedDividends2025 = {
+  '466940': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:87,2:87,3:87,4:87,5:87,6:87,7:87,8:87,9:87,10:87,11:87,12:87}},
+  '476800': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:30,2:30,3:30,4:30,5:30,6:30,7:30,8:30,9:30,10:30,11:30,12:30}},
+  '0052D0': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:58,2:58,3:58,4:58,5:58,6:58,7:58,8:58,9:58,10:58,11:58,12:58}},
+  '0008S0': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:101,2:101,3:101,4:101,5:101,6:101,7:101,8:101,9:101,10:101,11:101,12:101}},
+  '498400': {freq:'wk',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '475720': {freq:'wk',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '498410': {freq:'wk',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '489030': {freq:'wk',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0086B0': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:45,2:45,3:45,4:45,5:45,6:45,7:45,8:45,9:45,10:45,11:45,12:45}},
+  '088980': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0089D0': {freq:'q',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '352540': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0097L0': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0098N0': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0105E0': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '329200': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '441680': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '458760': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '474220': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '482730': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '481060': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0153K0': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '433970': {freq:'q',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '486290': {freq:'mon',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}},
+  '0025N0': {freq:'q',periods:{1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},customDates:{},data:{1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}}
+};
+
+const frequencyList = {
+  mon: '월배당',
+  wk: '위클리',
+  q: '분기',
+  h: '반기'
+};
+
+let dividendData = {
+  2026: JSON.parse(JSON.stringify(publishedDividends2026)),
+  2025: JSON.parse(JSON.stringify(publishedDividends2025))
+};
+
+let currentYear = 2026;
+let currentCode = null;
+let currentMonth = null;
+let currentPeriodType = null;
+let selectedSearchCode = null;
+let filterKeyword = '';   // 테이블 필터 키워드
+let filterKeywordFull = []; // " - " 분리된 파트 전체
+let sortCol = 'code';     // 정렬 기준 컬럼
+let sortDir = 'asc';      // asc | desc
+let priceMap  = {};       // { 코드: { today, prev } }
+let holdingsMap = {};     // { 코드: 보유수량 합계 }
+let _cachedAllData = null;
+let estMap = {};          // { 코드: 수기수정된 분배금추정 } — 조회월 변경 시 초기화
+let estMonth  = null;     // 현재 추정 기준 월
+let showEstCol = false;   // 분배금추정 열 표시 여부
+
+function toggleEstCol() {
+  showEstCol = !showEstCol;
+  const btn = document.getElementById('estToggleBtn');
+  if (btn) {
+    btn.className = showEstCol ? 'btn-est-on' : 'btn-est-off';
+  }
+  renderTable();
+}
+
+// ── 보유수량 계산 (ETF_index localStorage 또는 내장 거래 데이터) ──
+function buildHoldingsMap() {
+  let txData = null;
+
+  // 1) ETF_index가 저장한 localStorage 거래내역
+  try {
+    const raw = localStorage.getItem('etf_txData_v1');
+    if (raw) txData = JSON.parse(raw);
+  } catch (e) {}
+
+  // 2) 없으면 HTML 내장 거래 데이터 사용
+  if (!txData && window.TX_RAW_DATA) txData = window.TX_RAW_DATA;
+  if (!txData) return;
+
+  // 날짜순 정렬 후 매수/매도 적용
+  const sorted = [...txData].sort((a, b) => a.일자.localeCompare(b.일자));
+  const pos = {};
+  for (const tx of sorted) {
+    const name = tx.종목명 || '';
+    const code = name.includes('__') ? name.split('__')[0] : name;
+    if (!code) continue;
+    if (!pos[code]) pos[code] = 0;
+    if (tx.매수수량) pos[code] += tx.매수수량;
+    else if (tx.매도수량) pos[code] = Math.max(0, pos[code] - tx.매도수량);
+  }
+
+  holdingsMap = {};
+  for (const [code, qty] of Object.entries(pos)) {
+    if (qty > 0) holdingsMap[code] = Math.round(qty);
+  }
+}
+
+// ── 시세 로드: 내장 데이터(항상) + XHR(서버환경 최신화) ──
+function loadPrices() {
+  // 1) 내장 데이터 (HTML에 직접 포함 — file:// 포함 모든 환경 작동)
+  const embedded  = window.PRICES_EMBEDDED   || null;
+  // 2) prices_data.js script 태그 로드값
+  const jsData    = window.PYTHON_PRICES_DATA || null;
+
+  // 내장 + js 병합 (embedded 우선, 최신 날짜 기준)
+  const merged = {};
+  [jsData, embedded].forEach(src => {
+    if (!src) return;
+    Object.keys(src).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k))
+      .forEach(d => { merged[d] = src[d]; });
+  });
+  _cachedAllData = Object.keys(merged).length ? merged : null;
+
+  // 3) XHR로 prices.json 추가 로드 시도 (서버 환경에서 최신 날짜 보완)
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', './prices.json', false);
+    xhr.send();
+    if (xhr.responseText) {
+      const jsonData = JSON.parse(xhr.responseText);
+      Object.keys(jsonData).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k))
+        .forEach(d => { merged[d] = jsonData[d]; }); // 최신 날짜 덮어쓰기
+      _cachedAllData = merged;
+    }
+  } catch (e) { /* file:// 환경에서 무시 — 내장 데이터로 동작 */ }
+
+  // 상태 표시
+  if (_cachedAllData) {
+    const dates = Object.keys(_cachedAllData).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+    _updatePriceStatus(`로드완료 (${dates[0]} ~ ${dates[dates.length-1]})`, true);
+  } else {
+    _updatePriceStatus('시세 데이터 없음', false);
+  }
+}
+
+// ── 조회기준일로 시세 적용 ──
+function inquireWithDate() {
+  const inquiryDate = document.getElementById('inquiryDate').value;
+  if (!_cachedAllData) { renderTable(); return; }
+
+  const availDates = Object.keys(_cachedAllData)
+    .filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k))
+    .sort().reverse();
+
+  // 조회기준일 이하의 가장 최근 거래일
+  const targetDate = inquiryDate
+    ? (availDates.find(d => d <= inquiryDate) || availDates[0])
+    : availDates[0];
+
+  const dayData = _cachedAllData[targetDate] || {};
+  priceMap = {};
+  for (const [code, vals] of Object.entries(dayData)) {
+    if (vals && vals.today > 0)
+      priceMap[code] = { today: vals.today, prev: vals.prev || vals.today };
+  }
+
+  const matched = targetDate === inquiryDate;
+  _updatePriceStatus(
+    `📡 시세 적용일: ${targetDate}${matched ? '' : ' (해당일 데이터 없어 직전 거래일 사용)'}`,
+    matched
+  );
+  renderTable();
+}
+
+function _updatePriceStatus(msg, ok) {
+  const el = document.getElementById('priceStatus');
+  if (el) { el.textContent = msg; el.style.color = ok ? '#3fb950' : 'var(--amber)'; }
+}
+
+// 데이터 객체에서 가장 최신 날짜 문자열 반환
+function _latestDate(data) {
+  const dates = Object.keys(data).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
+  return dates.length ? dates.sort().pop() : null;
+}
+
+function filterTable() {
+  const raw = document.getElementById('newCode').value.trim();
+  // 드롭다운 선택 시 "476800 - KODEX..." 형태로 들어오므로 " - " 앞뒤 모두 검색
+  const parts = raw.split(' - ').map(p => p.trim().toUpperCase());
+  filterKeyword = parts[0]; // 코드 또는 입력 전체
+  filterKeywordFull = parts; // 코드 + 이름 모두 검색에 활용
+  document.getElementById('searchResults').classList.remove('active');
+  const badge = document.getElementById('filterBadge');
+  badge.style.display = filterKeyword ? 'block' : 'none';
+  renderTable();
+}
+
+function clearFilter() {
+  filterKeyword = '';
+  filterKeywordFull = [];
+  document.getElementById('newCode').value = '';
+  document.getElementById('filterBadge').style.display = 'none';
+  renderTable();
+}
+
+function isBusinessDay(date) {
+  const d = new Date(date);
+  const dayOfWeek = d.getDay();
+  const year = d.getFullYear();
+  const dateStr = d.toISOString().split('T')[0];
+  const holidays = HOLIDAYS[year] || HOLIDAYS[2026];
+  return dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.includes(dateStr);
+}
+
+function addBusinessDays(date, days) {
+  let current = new Date(date);
+  let count = 0;
+  while (count < days) {
+    current.setDate(current.getDate() + 1);
+    if (isBusinessDay(current)) count++;
+  }
+  return current;
+}
+
+function formatDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function calculateExpectedDate(periodType, customDate) {
+  if (periodType === '직접등록' && customDate) return customDate;
+  if (!periodType) return '';
+
+  // 조회기준일 가져오기
+  const inquiryStr = document.getElementById('inquiryDate').value;
+  const inquiry = inquiryStr ? new Date(inquiryStr) : new Date();
+  inquiry.setHours(0, 0, 0, 0);
+
+  if (periodType === '월초') {
+    // 이번 달 말일 기준 + 2 거래일 → 후보
+    // 이미 지났으면 다음 달 말일로 이동
+    let year  = inquiry.getFullYear();
+    let month = inquiry.getMonth() + 1; // 1-based
+
+    for (let i = 0; i < 3; i++) {   // 최대 3개월 탐색 (안전망)
+      const lastDay  = new Date(year, month, 0);   // 이번 달 마지막 날
+      const candidate = addBusinessDays(lastDay, 2);
+      if (candidate > inquiry) return formatDate(candidate);
+      // 다음 달로
+      month++;
+      if (month > 12) { month = 1; year++; }
+    }
+
+  } else if (periodType === '중순') {
+    let year  = inquiry.getFullYear();
+    let month = inquiry.getMonth() + 1;
+
+    for (let i = 0; i < 3; i++) {
+      const mid = new Date(year, month - 1, 15);
+      const candidate = addBusinessDays(mid, 2);
+      if (candidate > inquiry) return formatDate(candidate);
+      month++;
+      if (month > 12) { month = 1; year++; }
+    }
+
+  } else if (periodType === '분기초') {
+    // 분기 시작월: 1, 4, 7, 10 → 전월 말일 + 2 거래일
+    let year = inquiry.getFullYear();
+    const quarterStarts = [1, 4, 7, 10, 13]; // 13 → 다음해 1월
+    for (let qs of quarterStarts) {
+      const y = qs > 12 ? year + 1 : year;
+      const m = qs > 12 ? 1 : qs;
+      const lastDay  = new Date(y, m - 1, 0);   // 전월 마지막 날
+      const candidate = addBusinessDays(lastDay, 2);
+      if (candidate > inquiry) return formatDate(candidate);
+    }
+  }
+
+  return '';
+}
+
+function loadStorage() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const loaded = JSON.parse(saved);
+      dividendData = loaded;
+    } catch (e) {
+      console.error('Storage load error:', e);
+    }
+  }
+}
+
+function saveStorage() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(dividendData));
+}
+
+function toggleYearDropdown() {
+  const dropdown = document.getElementById('yearDropdown');
+  dropdown.classList.toggle('active');
+}
+
+function selectYear(year) {
+  currentYear = year;
+
+  // 좌측 드롭다운 레이블 업데이트
+  const lbl = document.getElementById('yearLabel');
+  if (lbl) lbl.textContent = year;
+
+  document.querySelectorAll('.dropdown-item').forEach(item => {
+    item.classList.remove('selected');
+    if (item.textContent.includes(year.toString())) {
+      item.classList.add('selected');
+    }
+  });
+
+  document.getElementById('yearDropdown').classList.remove('active');
+  renderTable();
+}
+
+// 검색 함수
+function searchETF() {
+  const input = document.getElementById('newCode').value.trim().toUpperCase();
+  const results = document.getElementById('searchResults');
+  
+  if (!input) {
+    results.classList.remove('active');
+    results.innerHTML = '';
+    selectedSearchCode = null;
+    return;
+  }
+  
+  const searchResults = [];
+  
+  Object.keys(csvETFData).forEach(code => {
+    const name = csvETFData[code];
+    if (code.includes(input) || name.toUpperCase().includes(input)) {
+      searchResults.push({ code, name });
+    }
+  });
+  
+  if (searchResults.length === 0) {
+    results.classList.remove('active');
+    results.innerHTML = '';
+    selectedSearchCode = null;
+    return;
+  }
+  
+  let html = '';
+  searchResults.forEach(item => {
+    html += `<div class="search-result-item" onclick="selectSearchResult('${item.code}', '${item.name}')">
+      <span class="search-result-code">${item.code}</span>
+      <span class="search-result-name">${item.name}</span>
+    </div>`;
+  });
+  
+  results.innerHTML = html;
+  results.classList.add('active');
+}
+
+function selectSearchResult(code, name) {
+  document.getElementById('newCode').value = `${code} - ${name}`;
+  selectedSearchCode = code;
+  document.getElementById('searchResults').classList.remove('active');
+}
+
+function sortBy(col) {
+  if (sortCol === col) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortCol = col;
+    sortDir = 'asc';
+  }
+  renderTable();
+}
+
+function saveEst(code, el) {
+  const raw = el.textContent.replace(/,/g, '').trim();
+  const val  = parseInt(raw) || 0;
+  estMap[code] = val;
+  el.textContent = val > 0 ? val.toLocaleString() : '0';
+}
+
+function renderTable() {
+  const data = dividendData[currentYear];
+
+  // 조회기준일에서 월 추출 (분배금추정 열 위치 결정)
+  const inquiryDateVal = document.getElementById('inquiryDate').value;
+  const inquiryMonth   = inquiryDateVal ? parseInt(inquiryDateVal.split('-')[1]) : null;
+
+  // 조회월이 바뀌면 수기수정값 초기화
+  if (inquiryMonth !== estMonth) {
+    estMap   = {};
+    estMonth = inquiryMonth;
+  }
+
+  // ── 헤더 ──
+  function thClass(col) {
+    let cls = 'sortable';
+    if (sortCol === col) cls += sortDir === 'asc' ? ' sort-asc' : ' sort-desc';
+    return cls;
+  }
+
+  let header = `<tr>
+    <th>NO</th>
+    <th class="code-col ${thClass('code')}"  onclick="sortBy('code')">종목</th>
+    <th class="name-col ${thClass('name')}"  onclick="sortBy('name')">종목명</th>
+    <th class="${thClass('price')}"           onclick="sortBy('price')">현재가</th>
+    <th class="${thClass('chg')}"             onclick="sortBy('chg')">전거래일비</th>
+    <th class="${thClass('qty')}"             onclick="sortBy('qty')">보유수량</th>
+    <th class="${thClass('period')}"          onclick="sortBy('period')">분배시기</th>
+    <th class="${thClass('date')}"            onclick="sortBy('date')">분배예상일</th>`;
+  for (let i = 1; i <= 12; i++) {
+    header += `<th class="${thClass('m'+i)}" onclick="sortBy('m${i}')">${i}월</th>`;
+    if (showEstCol && i === inquiryMonth) {
+      header += `<th class="est-col-th sortable ${thClass('est')}" onclick="sortBy('est')">분배금추정</th>`;
+    }
+  }
+  header += `<th class="${thClass('total')}" onclick="sortBy('total')">합계</th></tr>`;
+  document.getElementById('tableHead').innerHTML = header;
+
+  // ── 정렬에 est 케이스 포함 ──
+  // ── 필터 ──
+  const allCodes = Object.keys(data);
+  let codes = filterKeyword
+    ? allCodes.filter(code => {
+        const name = (csvETFData[code] || '').toUpperCase();
+        return filterKeywordFull.some(kw => code.includes(kw) || name.includes(kw));
+      })
+    : allCodes;
+
+  codes.sort((a, b) => {
+    const ea = data[a], eb = data[b];
+    let va, vb;
+    if (sortCol === 'code') {
+      va = a; vb = b;
+    } else if (sortCol === 'name') {
+      va = csvETFData[a] || a; vb = csvETFData[b] || b;
+    } else if (sortCol === 'period') {
+      va = (ea.periods && ea.periods[1]) || ''; vb = (eb.periods && eb.periods[1]) || '';
+    } else if (sortCol === 'price') {
+      va = (priceMap[a] && priceMap[a].today) || 0; vb = (priceMap[b] && priceMap[b].today) || 0;
+    } else if (sortCol === 'chg') {
+      const pa = priceMap[a]; va = pa ? pa.today - pa.prev : 0;
+      const pb = priceMap[b]; vb = pb ? pb.today - pb.prev : 0;
+    } else if (sortCol === 'qty') {
+      va = holdingsMap[a] || 0; vb = holdingsMap[b] || 0;
+    } else if (sortCol === 'est') {
+      const qa = holdingsMap[a] || 0, qb = holdingsMap[b] || 0;
+      va = estMap[a] !== undefined ? estMap[a] : qa * (ea.data[inquiryMonth] || 0);
+      vb = estMap[b] !== undefined ? estMap[b] : qb * (eb.data[inquiryMonth] || 0);
+    } else if (sortCol === 'date') {
+      va = calculateExpectedDate(ea.periods && ea.periods[1], ea.customDates && ea.customDates[1]) || '';
+      vb = calculateExpectedDate(eb.periods && eb.periods[1], eb.customDates && eb.customDates[1]) || '';
+    } else if (sortCol === 'total') {
+      va = Object.values(ea.data).reduce((s,v)=>s+v,0);
+      vb = Object.values(eb.data).reduce((s,v)=>s+v,0);
+    } else {
+      const m = parseInt(sortCol.replace('m',''));
+      va = ea.data[m] || 0; vb = eb.data[m] || 0;
+    }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  // ── 행 생성 (분배시기 정렬 시 그룹 소계 삽입) ──
+  let body = '';
+  let no = 1;
+  let monthTotals = Array(12).fill(0);
+  let grandTotal  = 0;
+  let estTotal    = 0;
+  let qtyTotal    = 0;
+
+  // 소계용 그룹 누적
+  const isSortedByPeriod = (sortCol === 'period');
+  let grpLabel   = null;
+  let grpMonths  = Array(12).fill(0);
+  let grpTotal   = 0;
+  let grpQty     = 0;
+  let grpEst     = 0;
+  let grpCount   = 0;
+
+  function flushSubtotal() {
+    if (!isSortedByPeriod || grpCount === 0) return '';
+    const cls = grpLabel === '월초' ? 'subtotal-월초' : grpLabel === '중순' ? 'subtotal-중순' : 'subtotal-기타';
+    const arrow = grpLabel === '월초' ? '▲' : grpLabel === '중순' ? '◆' : '▪';
+    let sr = `<tr class="subtotal-row ${cls}">
+      <td colspan="5" style="text-align:left;padding-left:12px;">${arrow} ${grpLabel || '기타'} 소계 (${grpCount}개)</td>
+      <td style="text-align:right;min-width:80px;">${grpQty > 0 ? grpQty.toLocaleString() : '-'}</td>
+      <td colspan="2"></td>`;
+    for (let m = 1; m <= 12; m++) {
+      sr += `<td style="text-align:right;">${grpMonths[m-1] > 0 ? grpMonths[m-1].toLocaleString() : '-'}</td>`;
+      if (showEstCol && m === inquiryMonth) {
+        sr += `<td style="text-align:right;min-width:90px;color:#a3e635;" data-pv="1">${grpEst > 0 ? grpEst.toLocaleString() : '-'}</td>`;
+      }
+    }
+    sr += `<td style="text-align:right;">${grpTotal.toLocaleString()}</td></tr>`;
+    // 그룹 초기화
+    grpMonths = Array(12).fill(0);
+    grpTotal  = 0; grpQty = 0; grpEst = 0; grpCount = 0;
+    return sr;
+  }
+
+  codes.forEach((code, idx) => {
+    const etf = data[code];
+    const periodVal = (etf.periods && etf.periods[1]) || '';
+
+    // 그룹 변경 감지 → 이전 그룹 소계 삽입
+    if (isSortedByPeriod && grpLabel !== null && grpLabel !== periodVal) {
+      body += flushSubtotal();
+    }
+    if (isSortedByPeriod) grpLabel = periodVal;
+
+    const periodBg    = periodVal === '월초' ? 'rgba(58,130,246,0.18)'
+                      : periodVal === '중순' ? 'rgba(250,204,21,0.22)' : '';
+    const periodColor = periodVal === '월초' ? '#93c5fd'
+                      : periodVal === '중순' ? '#fde047' : 'var(--text)';
+    const codeStyle   = periodBg ? `style="background:${periodBg};color:${periodColor};font-weight:700;"` : '';
+    const periodStyle = periodBg ? `style="background:${periodBg};"` : '';
+
+    let row = `<tr>
+      <td class="no-col">${no}</td>
+      <td class="code-col" ${codeStyle}>${code}</td>
+      <td class="name-col">${csvETFData[code] || etf.name || code}</td>`;
+
+    // 현재가 / 전거래일비
+    const px = priceMap[code];
+    if (px && px.today > 0) {
+      const diff  = px.today - px.prev;
+      const cls   = diff > 0 ? 'price-up' : diff < 0 ? 'price-dn' : 'price-flat';
+      const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '━';
+      row += `<td class="price-col ${cls}">${px.today.toLocaleString()} <small>${arrow}</small></td>`;
+      row += `<td class="price-col ${cls}">${(diff > 0 ? '+' : '') + diff.toLocaleString()}</td>`;
+    } else {
+      row += `<td class="price-col price-none">-</td><td class="price-col price-none">-</td>`;
+    }
+
+    // 보유수량
+    const qty = holdingsMap[code] || 0;
+    qtyTotal += qty; grpQty += qty;
+    row += qty > 0
+      ? `<td class="price-col" style="color:var(--text);font-weight:600;">${qty.toLocaleString()}</td>`
+      : `<td class="price-col price-none">-</td>`;
+
+    // 분배시기 / 분배예상일
+    const periodDisplay = periodVal
+      ? `<span style="color:${periodColor};font-weight:700;">${periodVal}</span>`
+      : `<span style="color:var(--text3);">-</span>`;
+    row += `<td class="period-col" ${periodStyle} onclick="openPeriodModal('${code}', 1)">${periodDisplay}</td>`;
+    const expectedDate = periodVal ? calculateExpectedDate(periodVal, etf.customDates && etf.customDates[1]) : '';
+    row += `<td class="date-col" onclick="openPeriodModal('${code}', 1)">${expectedDate || '-'}</td>`;
+
+    // 월별 분배금 + 분배금추정 열
+    let rowTotal = 0;
+    for (let m = 1; m <= 12; m++) {
+      const v = etf.data[m] || 0;
+      rowTotal += v; monthTotals[m-1] += v; grandTotal += v; grpMonths[m-1] += v;
+      row += `<td class="div-cell ${v > 0 ? 'has-data' : 'no-data'}" onclick="openDivModal('${code}', ${m})">${v}</td>`;
+
+      if (showEstCol && m === inquiryMonth) {
+        const defaultEst = qty * (etf.data[m] || 0);
+        const estVal     = estMap[code] !== undefined ? estMap[code] : defaultEst;
+        estTotal += estVal; grpEst += estVal;
+        row += `<td class="est-cell" data-pv="1" contenteditable="true"
+                    onblur="saveEst('${code}', this)"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+                >${estVal > 0 ? estVal.toLocaleString() : '0'}</td>`;
+      }
+    }
+    grpTotal += rowTotal;
+    row += `<td class="div-cell has-data">${rowTotal.toLocaleString()}</td></tr>`;
+    body += row;
+    no++;
+    grpCount++;
+  });
+
+  // 마지막 그룹 소계
+  body += flushSubtotal();
+
+  // ── 합계 행 ──
+  // 고정 컬럼(NO~분배예상일) 8개 → colspan=8
+  let totalRow = `<tr class="total-row">
+    <td colspan="5">▶ 월 합계</td>
+    <td class="total-val" style="text-align:right;min-width:80px;">${qtyTotal > 0 ? qtyTotal.toLocaleString() : '-'}</td>
+    <td colspan="2"></td>`;
+  for (let m = 1; m <= 12; m++) {
+    totalRow += `<td class="total-val">${monthTotals[m-1].toLocaleString()}</td>`;
+    if (showEstCol && m === inquiryMonth) {
+      totalRow += `<td class="total-val" data-pv="1" style="color:#a3e635;text-align:right;min-width:90px;">${estTotal.toLocaleString()}</td>`;
+    }
+  }
+  totalRow += `<td class="total-val">${grandTotal.toLocaleString()}</td></tr>`;
+
+  document.getElementById('tableBody').innerHTML = body + totalRow;
+}
+
+function openDivModal(code, month) {
+  currentCode = code;
+  currentMonth = month;
+  const value = dividendData[currentYear][code].data[month] || 0;
+  document.getElementById('divInput').value = value;
+  
+  const monthData = dividendData[currentYear][code].data;
+  let monthSum = 0;
+  for (let m = 1; m <= 12; m++) monthSum += monthData[m] || 0;
+  document.getElementById('monthTotal').textContent = monthSum.toLocaleString();
+  
+  document.getElementById('divModal').classList.add('active');
+  document.getElementById('divInput').focus();
+}
+
+function closeDivModal() {
+  document.getElementById('divModal').classList.remove('active');
+}
+
+function saveDivData() {
+  const value = parseInt(document.getElementById('divInput').value) || 0;
+  dividendData[currentYear][currentCode].data[currentMonth] = value;
+  saveStorage();
+  renderTable();
+  closeDivModal();
+}
+
+function openPeriodModal(code, month) {
+  currentCode = code;
+  currentMonth = month;
+  const etf = dividendData[currentYear][code];
+  currentPeriodType = (etf.periods && etf.periods[month]) || '';
+  
+  // 이전 선택 상태 제거
+  document.querySelectorAll('.period-option').forEach(opt => {
+    opt.classList.remove('selected');
+  });
+  
+  // 현재 선택된 시기에 selected 클래스 추가
+  if (currentPeriodType) {
+    document.querySelectorAll('.period-option').forEach(opt => {
+      if (opt.textContent.trim() === currentPeriodType) {
+        opt.classList.add('selected');
+      }
+    });
+  }
+  
+  // 직접등록 선택 시 입력 필드 표시
+  const directInputField = document.getElementById('directInputField');
+  if (currentPeriodType === '직접등록') {
+    directInputField.classList.add('active');
+    const customDate = etf.customDates && etf.customDates[month];
+    document.getElementById('directDateInput').value = customDate || '';
+  } else {
+    directInputField.classList.remove('active');
+  }
+  
+  document.getElementById('periodModal').classList.add('active');
+}
+
+function closePeriodModal() {
+  document.getElementById('periodModal').classList.remove('active');
+}
+
+function selectPeriodType(type) {
+  currentPeriodType = type;
+  document.querySelectorAll('.period-option').forEach(opt => {
+    opt.classList.remove('selected');
+  });
+  event.target.classList.add('selected');
+  
+  // 직접등록 선택 시 입력 필드 표시
+  const directInputField = document.getElementById('directInputField');
+  if (type === '직접등록') {
+    directInputField.classList.add('active');
+    document.getElementById('directDateInput').focus();
+  } else {
+    directInputField.classList.remove('active');
+  }
+}
+
+function savePeriodData() {
+  if (!dividendData[currentYear][currentCode].periods) {
+    dividendData[currentYear][currentCode].periods = {};
+  }
+  if (!dividendData[currentYear][currentCode].customDates) {
+    dividendData[currentYear][currentCode].customDates = {};
+  }
+  
+  // 모든 월에 동일한 분배시기 적용
+  for (let m = 1; m <= 12; m++) {
+    dividendData[currentYear][currentCode].periods[m] = currentPeriodType;
+  }
+  
+  // 직접등록인 경우 입력한 날짜 저장
+  if (currentPeriodType === '직접등록') {
+    const customDate = document.getElementById('directDateInput').value;
+    dividendData[currentYear][currentCode].customDates[currentMonth] = customDate;
+  }
+  
+  saveStorage();
+  renderTable();
+  closePeriodModal();
+}
+
+function inquireData() {
+  const inquiryDate = document.getElementById('inquiryDate').value;
+  console.log('조회기준일:', inquiryDate);
+  renderTable();
+}
+
+function addNewETF() {
+  const code = selectedSearchCode || document.getElementById('newCode').value.trim().toUpperCase().split(' ')[0];
+  
+  if (!code) {
+    alert('종목코드를 입력해주세요');
+    return;
+  }
+  
+  const name = csvETFData[code];
+  if (!name) {
+    alert('데이터베이스에 없는 종목입니다');
+    return;
+  }
+  
+  if (dividendData[currentYear][code]) {
+    alert('이미 등록된 종목입니다');
+    return;
+  }
+  
+  for (const year of [2025, 2026]) {
+    dividendData[year][code] = {
+      freq: 'mon',
+      periods: {1:'',2:'',3:'',4:'',5:'',6:'',7:'',8:'',9:'',10:'',11:'',12:''},
+      customDates: {},
+      data: {1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0}
+    };
+  }
+  
+  saveStorage();
+  renderTable();
+  document.getElementById('newCode').value = '';
+  document.getElementById('searchResults').classList.remove('active');
+  selectedSearchCode = null;
+  alert(`${code} (${name})가 등록되었습니다`);
+}
+
+// ── 파일 업로드 (CSV / Excel) ──
+function importExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  const isCSV = file.name.toLowerCase().endsWith('.csv');
+
+  reader.onload = (e) => {
+    try {
+      let wb;
+      if (isCSV) {
+        const text = e.target.result.replace(/^\uFEFF/, '');
+        wb = XLSX.read(text, { type: 'string' });
+      } else {
+        wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      }
+
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: 0 });
+      if (data.length < 2) { alert('데이터가 없습니다'); return; }
+
+      // 헤더 행에서 열 인덱스 찾기
+      const headers = data[0].map(h => String(h).trim());
+      const codeIdx = headers.findIndex(h => h.includes('종목코드'));
+      const m1Idx   = headers.findIndex(h => h === '1월');
+      if (codeIdx < 0 || m1Idx < 0) { alert('열 형식이 맞지 않습니다 (종목코드·1월 열 필요)'); return; }
+
+      let updated = 0;
+      for (let i = 1; i < data.length; i++) {
+        const row  = data[i];
+        const code = normalizeCode(String(row[codeIdx] || ''));
+        if (!code || !dividendData[currentYear][code]) continue;
+        for (let m = 1; m <= 12; m++) {
+          dividendData[currentYear][code].data[m] = parseInt(row[m1Idx + m - 1]) || 0;
+        }
+        updated++;
+      }
+
+      saveStorage();
+      renderTable();
+      alert(`✅ ${updated}개 종목 데이터를 업로드했습니다.`);
+    } catch (err) {
+      alert('파일 처리 오류: ' + err.message);
+    }
+    event.target.value = '';
+  };
+
+  if (isCSV) reader.readAsText(file, 'UTF-8');
+  else        reader.readAsArrayBuffer(file);
+}
+const CODE_ALIAS = { '88980':'088980', '105020':'0105E0' };
+function normalizeCode(raw) {
+  const c = raw.trim().replace(/^"|"$/g,'');
+  return CODE_ALIAS[c] || c;
+}
+
+// ── CSV 가져오기 ──
+function importCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      // BOM 제거 후 파싱
+      let text = e.target.result.replace(/^\uFEFF/, '');
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      // 헤더 행 파싱 → 열 인덱스 확인
+      const headers = parseCSVRow(lines[0]);
+      const codeIdx  = headers.findIndex(h => h.includes('종목코드'));
+      const m1Idx    = headers.findIndex(h => h === '1월');
+      // 월 인덱스: 1월~12월 = m1Idx ~ m1Idx+11
+      if (codeIdx < 0 || m1Idx < 0) { alert('CSV 형식이 맞지 않습니다'); return; }
+
+      let updated = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVRow(lines[i]);
+        if (cols.length < m1Idx + 12) continue;
+        const code = normalizeCode(cols[codeIdx]);
+        if (!dividendData[currentYear][code]) continue;
+        for (let m = 1; m <= 12; m++) {
+          dividendData[currentYear][code].data[m] = parseInt(cols[m1Idx + m - 1]) || 0;
+        }
+        updated++;
+      }
+      saveStorage();
+      renderTable();
+      alert(`✅ ${updated}개 종목 데이터를 가져왔습니다.`);
+    } catch (err) {
+      alert('CSV 파싱 오류: ' + err.message);
+    }
+    event.target.value = ''; // 같은 파일 재업로드 허용
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// 따옴표 포함된 CSV 한 줄 파싱
+function parseCSVRow(line) {
+  const result = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuote = !inQuote; }
+    else if (ch === ',' && !inQuote) { result.push(cur); cur = ''; }
+    else { cur += ch; }
+  }
+  result.push(cur);
+  return result.map(s => s.trim());
+}
+
+// ── 엑셀 다운로드 (현재 테이블 전체) ──
+function downloadExcel() {
+  const table = document.getElementById('etfTable');
+  if (!table) return;
+
+  const rows = [];
+
+  // 헤더
+  const thCells = table.querySelectorAll('thead th');
+  const headers = [];
+  thCells.forEach(th => {
+    // 정렬 표시(▲▼) 제거한 순수 텍스트
+    headers.push(th.textContent.replace(/\s*[▲▼]\s*$/, '').trim());
+  });
+  rows.push(headers);
+
+  // 데이터 행 + 합계 행
+  const trs = table.querySelectorAll('tbody tr');
+  trs.forEach(tr => {
+    const row = [];
+    tr.querySelectorAll('td').forEach(td => {
+      const txt = td.textContent.trim();
+      // 숫자면 숫자로 변환
+      const num = Number(txt.replace(/,/g, ''));
+      row.push(txt === '-' || txt === '' || isNaN(num) || txt.includes('합계') || txt.includes('▶') ? txt : num);
+    });
+    if (row.length) rows.push(row);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // 종목코드 열(C=1) 전체를 텍스트 강제 지정 → 0105E0 과학적 표기 방지
+  const codeColIdx = headers.indexOf('종목');
+  if (codeColIdx >= 0) {
+    for (let R = 1; R < rows.length; R++) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: codeColIdx });
+      if (ws[addr]) {
+        ws[addr].t = 's';             // string 타입
+        ws[addr].z = '@';             // 텍스트 서식
+        ws[addr].v = String(ws[addr].v); // 값도 문자열로
+      }
+    }
+  }
+
+  // 현재가·전거래일비 열에서 ▲▼━ 제거하고 숫자만
+  const priceHeaders = ['현재가', '전거래일비'];
+  priceHeaders.forEach(hdr => {
+    const ci = headers.indexOf(hdr);
+    if (ci < 0) return;
+    for (let R = 1; R < rows.length; R++) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: ci });
+      if (!ws[addr]) continue;
+      const raw = String(ws[addr].v).replace(/[▲▼━+,]/g, '').trim();
+      const num = Number(raw);
+      if (!isNaN(num) && raw !== '') { ws[addr].t = 'n'; ws[addr].v = num; }
+    }
+  });
+
+  // 열 너비 자동 설정
+  const colWidths = headers.map((h, i) => {
+    if (h === '종목명')   return { wch: 36 };
+    if (h === '분배예상일') return { wch: 12 };
+    if (h === '종목')     return { wch: 10 };
+    if (h === '분배시기') return { wch:  8 };
+    if (h === '현재가')   return { wch: 10 };
+    if (h === '전거래일비') return { wch: 10 };
+    return { wch: 7 };
+  });
+  ws['!cols'] = colWidths;
+
+  // 헤더 행 스타일
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const addr = XLSX.utils.encode_cell({ r: 0, c: C });
+    if (!ws[addr]) ws[addr] = { v: '' };
+    ws[addr].s = {
+      fill: { fgColor: { rgb: '1C3A52' } },
+      font: { bold: true, color: { rgb: 'C0C8D0' } },
+      alignment: { horizontal: 'center' }
+    };
+  }
+
+  // 합계 행 스타일
+  const lastR = rows.length - 1;
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const addr = XLSX.utils.encode_cell({ r: lastR, c: C });
+    if (ws[addr]) {
+      ws[addr].s = {
+        fill: { fgColor: { rgb: '21262D' } },
+        font: { bold: true, color: { rgb: '3FB950' } }
+      };
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `ETF분배금_${currentYear}`);
+  XLSX.writeFile(wb, `ETF_분배금_${currentYear}.xlsx`);
+}
+
+// ─────────────────────────────────────────────────────────────
+// 공시 분배금 자동 불러오기 (NAVER Finance API)
+// ─────────────────────────────────────────────────────────────
+
+// CORS 프록시 목록 (순서대로 시도)
+const CORS_PROXIES = [
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`
+];
+
+async function fetchWithProxy(targetUrl) {
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const res = await fetch(proxy(targetUrl), { signal: AbortSignal.timeout(8000) });
+      if (res.ok) return res;
+    } catch (e) { /* 다음 프록시 시도 */ }
+  }
+  throw new Error('모든 프록시 실패');
+}
+
+// 종목코드 → NAVER ETF 분배금 이력 조회
+async function fetchDividendForCode(code) {
+  const year = currentYear;
+  const startDt = `${year}0101`;
+  const endDt   = `${year}1231`;
+
+  // NAVER Finance 모바일 API
+  const naverUrl = `https://m.stock.naver.com/api/fund/etf/${code}/dividend?page=1&pageSize=30`;
+
+  const res  = await fetchWithProxy(naverUrl);
+  const json = await res.json();
+
+  // 응답 구조: { dividendList: [{dividendDate, dividendPerUnit, ...}] }
+  const list = json?.dividendList ?? json?.list ?? json?.result ?? [];
+
+  if (!list.length) throw new Error('배당 데이터 없음');
+
+  // 초기화 (해당 연도 데이터만 덮어씀)
+  const data = dividendData[year][code]?.data;
+  if (!data) return;
+
+  for (const item of list) {
+    // 날짜 필드: dividendDate / paymentDate / date 등
+    const dateStr = item.dividendDate ?? item.paymentDate ?? item.date ?? '';
+    // 금액 필드: dividendPerUnit / dividend / amount 등
+    const amount  = parseInt(
+      item.dividendPerUnit ?? item.dividend ?? item.amount ?? 0
+    );
+
+    if (!dateStr || isNaN(amount)) continue;
+
+    const d = new Date(dateStr.replace(/\./g, '-'));
+    if (d.getFullYear() !== year) continue;
+
+    const month = d.getMonth() + 1;
+    data[month] = amount;
+  }
+}
+
+async function fetchAllDividends() {
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = true;
+  btn.textContent = '불러오는 중...';
+
+  const codes = Object.keys(dividendData[currentYear]);
+  let ok = 0, fail = 0, failList = [];
+
+  for (const code of codes) {
+    try {
+      await fetchDividendForCode(code);
+      ok++;
+    } catch (e) {
+      fail++;
+      failList.push(code);
+    }
+    // 과부하 방지: 요청 간 400ms 대기
+    await new Promise(r => setTimeout(r, 400));
+  }
+
+  saveStorage();
+  renderTable();
+
+  btn.disabled = false;
+  btn.textContent = '📥 공시 불러오기';
+
+  const msg = `✅ 성공 ${ok}개` +
+    (fail ? `\n⚠️ 실패 ${fail}개: ${failList.join(', ')}` : '');
+  alert(msg);
+}
+
+// 분배금 숨기기 토글 (ETF_index 동일 방식)
+function togglePrivacy() {
+  const on = document.body.classList.toggle('privacy-mode');
+  const btn = document.getElementById('pvBtn');
+  if (btn) { btn.textContent = on ? '🔓 보이기' : '🔒 숨기기'; btn.classList.toggle('on', on); }
+}
+
+// 외부 클릭 시 검색 결과 닫기
+document.addEventListener('click', function(event) {
+  const input = document.getElementById('newCode');
+  const results = document.getElementById('searchResults');
+  if (!event.target.closest('.add-etf-input-wrapper')) {
+    results.classList.remove('active');
+  }
+});
+
+// 초기화
+loadStorage();
+buildHoldingsMap(); // 거래내역에서 보유수량 계산
+loadPrices();       // 동기 XHR → _cachedAllData 즉시 설정
+inquireWithDate();  // 조회기준일 기준 시세 적용 후 renderTable() 호출
+</script>
+
+</body>
+</html>
