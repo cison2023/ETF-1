@@ -1,4 +1,136 @@
 {
+  "2026-05-18": {
+    "476800": {
+      "today": 4510,
+      "prev": 4590,
+      "src": "Python"
+    },
+    "0008S0": {
+      "today": 10180,
+      "prev": 10255,
+      "src": "Python"
+    },
+    "0052D0": {
+      "today": 16410,
+      "prev": 16780,
+      "src": "Python"
+    },
+    "498410": {
+      "today": 12015,
+      "prev": 12205,
+      "src": "Python"
+    },
+    "466940": {
+      "today": 24845,
+      "prev": 25240,
+      "src": "Python"
+    },
+    "498400": {
+      "today": 23275,
+      "prev": 23215,
+      "src": "Python"
+    },
+    "489030": {
+      "today": 7560,
+      "prev": 7675,
+      "src": "Python"
+    },
+    "475720": {
+      "today": 14770,
+      "prev": 14715,
+      "src": "Python"
+    },
+    "474220": {
+      "today": 16680,
+      "prev": 16730,
+      "src": "Python"
+    },
+    "441680": {
+      "today": 11420,
+      "prev": 11480,
+      "src": "Python"
+    },
+    "482730": {
+      "today": 12650,
+      "prev": 12800,
+      "src": "Python"
+    },
+    "458760": {
+      "today": 11200,
+      "prev": 11215,
+      "src": "Python"
+    },
+    "088980": {
+      "today": 11140,
+      "prev": 11180,
+      "src": "Python"
+    },
+    "0086B0": {
+      "today": 10220,
+      "prev": 10385,
+      "src": "Python"
+    },
+    "352540": {
+      "today": 11510,
+      "prev": 11620,
+      "src": "Python"
+    },
+    "0089D0": {
+      "today": 12960,
+      "prev": 13190,
+      "src": "Python"
+    },
+    "0098N0": {
+      "today": 12910,
+      "prev": 13125,
+      "src": "Python"
+    },
+    "0097L0": {
+      "today": 13550,
+      "prev": 13645,
+      "src": "Python"
+    },
+    "0105E0": {
+      "today": 13795,
+      "prev": 14155,
+      "src": "Python"
+    },
+    "329200": {
+      "today": 4245,
+      "prev": 4290,
+      "src": "Python"
+    },
+    "481060": {
+      "today": 7640,
+      "prev": 7735,
+      "src": "Python"
+    },
+    "0153K0": {
+      "today": 11960,
+      "prev": 12010,
+      "src": "Python"
+    },
+    "433970": {
+      "today": 14260,
+      "prev": 14390,
+      "src": "Python"
+    },
+    "0025N0": {
+      "today": 12350,
+      "prev": 12520,
+      "src": "Python"
+    },
+    "486290": {
+      "today": 11775,
+      "prev": 11900,
+      "src": "Python"
+    },
+    "457480": {
+      "today": 23840,
+      "prev": 24470,
+      "src": "Python"
+    }
+  },
   "2026-05-15": {
     "476800": {
       "today": 4590,
